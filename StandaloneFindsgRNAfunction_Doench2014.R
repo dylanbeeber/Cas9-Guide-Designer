@@ -2,7 +2,7 @@
 ## script, a gtf file from a species of your choice, and the files:
 ## "Doench_Model_Weights_Singleonly.csv" and "Doench_Model_Weights_Doubleonly.csv"
 ##
-## Example: setwd("C://Users//Dylan//Desktop//SP")
+## Example: setwd("C://Users//User//Desktop//Folder")
 ##
 ## if packages need to be installed input the following code:
 ## install.packages("stringr", repos='http://cran.us.r-project.org')
@@ -85,7 +85,7 @@ sgRNA_design <- function(usersequence, genomename, gtfname){
    }
    n <- n+1
   }
-  ## Removes any sgRNA that contain degerate bases (what about gap characters?)
+  ## Removes any sgRNA that contain degerate bases
   sgRNA_list_f <- sgRNA_list_f[grepl("[UWSMKRYBDHVNZ]", sgRNA_list_f) == FALSE]
   sgRNA_f_start <- sgRNA_f_start[grepl("[UWSMKRYBDHVNZ]", sgRNA_list_f) == FALSE]
   sgRNA_f_end <- sgRNA_f_end[grepl("[UWSMKRYBDHVNZ]", sgRNA_list_f) == FALSE]
