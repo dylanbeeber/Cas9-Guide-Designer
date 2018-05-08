@@ -18,27 +18,44 @@ Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz - an example of a gene annotation fil
 # Instructions for StandaloneFindsgRNAfunction_Doench2014.R
 The working directory must be set to a folder that contains this script, a .gtf file from a species of your choice, and the files: "Doench_Model_Weights_Singleonly.csv" and "Doench_Model_Weights_Doubleonly.csv"
 
+
 Example: setwd("C://Users//User//Desktop//Folder")
 
 if packages need to be installed input the following code:
+
 install.packages("stringr", repos='http://cran.us.r-project.org')
+
 source("https://bioconductor.org/biocLite.R")
+
 biocLite("Biostrings")
+
 biocLite("BSgenome")
 
+
 Your organism's genome must also be obtained from BSgenome
+
 To obtain a list of available genomes type:
+
 available.genomes()
+
 When a genome has been selected use the following code:
+
 biocLite("your.genenome")
+
 Example: biocLite("BSgenome.Hsapiens.UCSC.hg19")
 
+
 Finally, a genome annotation file (.gtf) must be obtained for your organism and placed in the working directory
+
 These can be found at: https://useast.ensembl.org/info/data/ftp/index.html
 
 Simply source this file and run the sgRNA_desgin function withthe target sequence, genome, and gtf as arguments.
+
 Example:
+
 source("StandaloneFindsgRNAfunction_Doench2014.R")
+
 alldata <- sgRNA_design("ATTCGAGGAGACTATAGAGCAGGATTAGGACAGAGACCATGTGACAGAA", Scerevisiae, "Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz")
+
 
 Important Note: When designing sgRNA for large genomes (billions of base pairs), use short query DNA sequences (under 250 bp). Depending on your hardware checking for off-targets can be quite computationally intensive and may take several hours if not limited to smaller query sequences.
