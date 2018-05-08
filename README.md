@@ -5,11 +5,14 @@ This software aims to provide all scientifically pertinent information when desi
 
 # Required files:
 StandaloneFindsgRNAfunction_Doench2014.R - The main script that contains all the code needed to design sgRNA. This is the only R file most users will need.
+
 Doench_Model_Weights_Singleonly.csv and Doench_Model_Weights_Doubleonly.csv - Two data tables used to assist with efficiency scoring. These must be put in the working directory when using the sgRNA_design function.
 
 # Optional files:
 RunShiny.R - A script that contains code for a user interface. This UI requires installation of several addition packages and is currently only available for the human and yeast genomes.
+
 FindsgRNAfunction_Doench2014.R - A script designed to be used with the user optional Shiny user interface
+
 Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz - an example of a gene annotation file (.gtf) that needs to be used with the the sgRNA_design function
 
 # Instructions for StandaloneFindsgRNAfunction_Doench2014.R
