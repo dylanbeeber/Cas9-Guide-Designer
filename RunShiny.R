@@ -96,7 +96,6 @@ server <- function(input, output) {
   ## Sources the file that contains the function for sgRNA design
   ## and the file for off-target searches
   source("FindsgRNAfunction_Doench2014.R")
-  source("Offtargetsearchfunction.R")
   
   ## Creates a list of reactive values that allows the program to
   ## update only when the action button is pressed
