@@ -15,7 +15,9 @@
 ## available.genomes()
 ## When a genome has been selected use the following code:
 ## biocLite("your.genenome")
+## library(your.genome)
 ## Example: biocLite("BSgenome.Hsapiens.UCSC.hg19")
+## library(BSgenome.Hsapiens.UCSC.hg19)
 ##
 ## Finally, a genome annotation file (.gtf) must be obtained for your organism and placed in the working directory
 ## These can be found at: https://useast.ensembl.org/info/data/ftp/index.html
@@ -24,13 +26,17 @@
 ## the target sequence, genome, and gtf as arguments.
 ## Example:
 ## source("StandaloneFindsgRNAfunction_Doench2014.R")
-## alldata <- sgRNA_design("ATTCGAGGAGACTATAGAGCAGGATTAGGACAGAGACCATGTGACAGAA", Scerevisiae, "Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz")
+## alldata <- sgRNA_design("GGCAGAGCTTCGTATGTCGGCGATTCATCTCAAGTAGAAGATCCTGGTGCAGTAGGCCTATGTGAGTTTTTGAAGGGGGTTCAAAGCGCCTTGTAA", Scerevisiae, "Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz")
 ##
 ## Important Note: When designing sgRNA for large genomes (billions of base pairs),
 ## use short query DNA sequences (under 250 bp). Depending on your hardware
 ## checking for off-targets can be quite computationally intensive and may
 ## take several hours if not limited to smaller query sequences.
 ##
+library(Biostrings)
+library(stringr)
+library(BSgenome.Scerevisiae.UCSC.sacCer2)
+
 sgRNA_design <- function(usersequence, genomename, gtfname){
   sequence <- paste(usersequence, collapse = "")
   sequence <- str_replace_all(sequence, fixed(" "), "")
@@ -82,8 +88,8 @@ sgRNA_design <- function(usersequence, genomename, gtfname){
       sgRNA_list_r[[length(sgRNA_list_r)+1]] <- poss_sgRNA
       sgRNA_r_start[[length(sgRNA_r_start)+1]] <- nchar(rev_seq)-n+5
       sgRNA_r_end[[length(sgRNA_r_end)+1]] <- nchar(rev_seq)-n+27
-   }
-   n <- n+1
+    }
+    n <- n+1
   }
   ## Removes any sgRNA that contain degerate bases
   sgRNA_list_f <- sgRNA_list_f[grepl("[UWSMKRYBDHVNZ]", sgRNA_list_f) == FALSE]
@@ -258,7 +264,7 @@ sgRNA_design <- function(usersequence, genomename, gtfname){
               ini_mm2_list[[length(ini_mm2_list)+1]] <- sum(length(mis_info[[f]]) == 2)
               ini_mm3_list[[length(ini_mm3_list)+1]] <- sum(length(mis_info[[f]]) == 3)
             }
-          ## Adds zeroes to all lists if there is no MM info
+            ## Adds zeroes to all lists if there is no MM info
           } else {
             ini_mm0_list[[length(ini_mm0_list)+1]] <- 0
             ini_mm1_list[[length(ini_mm1_list)+1]] <- 0
@@ -284,8 +290,8 @@ sgRNA_design <- function(usersequence, genomename, gtfname){
               rev_ini_mm1_list[[length(rev_ini_mm1_list)+1]] <- sum(length(rev_mis_info[[f]]) == 1)
               rev_ini_mm2_list[[length(rev_ini_mm2_list)+1]] <- sum(length(rev_mis_info[[f]]) == 2)
               rev_ini_mm3_list[[length(rev_ini_mm3_list)+1]] <- sum(length(rev_mis_info[[f]]) == 3)
-          }
-          ## Adds zeroes to all lists if there is no MM info
+            }
+            ## Adds zeroes to all lists if there is no MM info
           } else {
             rev_ini_mm0_list[[length(rev_ini_mm0_list)+1]] <- 0
             rev_ini_mm1_list[[length(rev_ini_mm1_list)+1]] <- 0
@@ -299,7 +305,7 @@ sgRNA_design <- function(usersequence, genomename, gtfname){
         mm2_list[[length(mm2_list)+1]] <- (sum(ini_mm2_list) + sum(rev_ini_mm2_list))
         mm3_list[[length(mm3_list)+1]] <- (sum(ini_mm3_list) + sum(rev_ini_mm3_list))
       }
-    ## Finds the mismatch (MM) info using Biostrings (only used if there is a single sgRNA)
+      ## Finds the mismatch (MM) info using Biostrings (only used if there is a single sgRNA)
     } else {
       ini_mm0_list <- c()
       ini_mm1_list <- c()
@@ -349,62 +355,71 @@ sgRNA_design <- function(usersequence, genomename, gtfname){
       mm2_list[[length(mm2_list)+1]] <- (sum(ini_mm2_list) + sum(rev_ini_mm2_list))
       mm3_list[[length(mm3_list)+1]] <- (sum(ini_mm3_list) + sum(rev_ini_mm3_list))
     }
-    ## Creates a function that annotates the off-targets called above
-    annotate_genome <- function(ochr, ostart, oend, odir, gtfname) {  
-      gtf <- import(gtfname)
-      seqlevelsStyle(gtf) <- "UCSC"
-      seqer <- unlist(ochr)
-      starter <- as.numeric(ostart)
-      ender <- as.numeric(unlist(oend))
-      strander <- unlist(odir)
-      off_ranges <- GRanges(seqer, IRanges(starter, ender), strander)
-      olaps <- findOverlaps(off_ranges, gtf)
-      geneid <- c()
-      geneidlist <- c()
-      genename <- c()
-      genenamelist <- c()
-      sequencetype <- c()
-      sequencetypelist <- c()
-      exonnumber <- c()
-      exonnumberlist <- c()
-      mcols(off_ranges)$gene_id <- c()
-      for (p in 1:length(off_ranges)) {
-        if (p %in% queryHits(olaps)) {
-          geneid <- mcols(gtf)$gene_id[subjectHits(olaps[which(p == queryHits(olaps))])]
-          geneid <- unique(geneid)
-          geneidlist[[length(geneidlist)+1]] <- paste(geneid, collapse = ", ")
-          genename <- mcols(gtf)$gene_name[subjectHits(olaps[which(p == queryHits(olaps))])]
-          genename <- unique(genename)
-          genenamelist[[length(genenamelist)+1]] <- paste(genename, collapse = ", ")
-          sequencetype <- mcols(gtf)$type[subjectHits(olaps[which(p == queryHits(olaps))])]
-          sequencetype <- unique(sequencetype)
-          sequencetypelist[[length(sequencetypelist)+1]] <- paste(sequencetype, collapse = ", ")
-          exonnumber <- mcols(gtf)$exon_number[subjectHits(olaps[which(p == queryHits(olaps))])]
-          exonnumber <- unique(exonnumber)
-          exonnumberlist[[length(exonnumberlist)+1]] <- paste(exonnumber, collapse = ", ")
-        } else {
-          geneidlist[[length(geneidlist)+1]] <- "NA"
-          genenamelist[[length(genenamelist)+1]] <- "NA"
-          sequencetypelist[[length(sequencetypelist)+1]] <- "NA"
-          exonnumberlist[[length(exonnumberlist)+1]] <- "NA"
+    if ((sum(mm0_list) + sum(mm1_list) + sum(mm2_list) + sum(mm3_list)) == 0) {
+      ## Put lists in data frame
+      sgRNA_data <- data.frame(sgRNA_seq, sgRNA_PAM, sgRNA_fow_or_rev, sgRNA_start, sgRNA_end, GCinstance, TTTTHomopolymerdetect, Homopolymerdetect, Doench_Score, mm0_list, mm1_list, mm2_list, mm3_list)
+      ## Set the names of each column
+      colnames(sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content", "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3")
+      sgRNA_data <- sgRNA_data[order(-sgRNA_data$`Doench Score`),]
+      sgRNA_data
+    } else {
+      ## Creates a function that annotates the off-targets called above
+      annotate_genome <- function(ochr, ostart, oend, odir, gtfname) {  
+        gtf <- import(gtfname)
+        seqlevelsStyle(gtf) <- "UCSC"
+        seqer <- unlist(ochr)
+        starter <- as.numeric(ostart)
+        ender <- as.numeric(unlist(oend))
+        strander <- unlist(odir)
+        off_ranges <- GRanges(seqer, IRanges(starter, ender), strander)
+        olaps <- findOverlaps(off_ranges, gtf)
+        geneid <- c()
+        geneidlist <- c()
+        genename <- c()
+        genenamelist <- c()
+        sequencetype <- c()
+        sequencetypelist <- c()
+        exonnumber <- c()
+        exonnumberlist <- c()
+        mcols(off_ranges)$gene_id <- c()
+        for (p in 1:length(off_ranges)) {
+          if (p %in% queryHits(olaps)) {
+            geneid <- mcols(gtf)$gene_id[subjectHits(olaps[which(p == queryHits(olaps))])]
+            geneid <- unique(geneid)
+            geneidlist[[length(geneidlist)+1]] <- paste(geneid, collapse = ", ")
+            genename <- mcols(gtf)$gene_name[subjectHits(olaps[which(p == queryHits(olaps))])]
+            genename <- unique(genename)
+            genenamelist[[length(genenamelist)+1]] <- paste(genename, collapse = ", ")
+            sequencetype <- mcols(gtf)$type[subjectHits(olaps[which(p == queryHits(olaps))])]
+            sequencetype <- unique(sequencetype)
+            sequencetypelist[[length(sequencetypelist)+1]] <- paste(sequencetype, collapse = ", ")
+            exonnumber <- mcols(gtf)$exon_number[subjectHits(olaps[which(p == queryHits(olaps))])]
+            exonnumber <- unique(exonnumber)
+            exonnumberlist[[length(exonnumberlist)+1]] <- paste(exonnumber, collapse = ", ")
+          } else {
+            geneidlist[[length(geneidlist)+1]] <- "NA"
+            genenamelist[[length(genenamelist)+1]] <- "NA"
+            sequencetypelist[[length(sequencetypelist)+1]] <- "NA"
+            exonnumberlist[[length(exonnumberlist)+1]] <- "NA"
+          }
         }
+        mcols(off_ranges)$gene_id <- geneidlist
+        more_off_info <- data.frame(geneidlist, genenamelist, sequencetypelist, exonnumberlist)
+        more_off_info
       }
-      mcols(off_ranges)$gene_id <- geneidlist
-      more_off_info <- data.frame(geneidlist, genenamelist, sequencetypelist, exonnumberlist)
-      more_off_info
+      ## Compiles data frame of all off-target annotations
+      more_off_info <- annotate_genome(off_chr, off_start, off_end, off_direction, gtfname)
+      ## Complies all extra sgRNA info into a separate data frame
+      all_offtarget_info <- data.frame(off_sgRNAseq, off_chr, off_start, off_end, off_mismatch, off_direction, off_offseq, more_off_info$geneidlist, more_off_info$genenamelist, more_off_info$sequencetypelist, more_off_info$exonnumberlist)
+      colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
+      ## Put lists in data frame
+      sgRNA_data <- data.frame(sgRNA_seq, sgRNA_PAM, sgRNA_fow_or_rev, sgRNA_start, sgRNA_end, GCinstance, TTTTHomopolymerdetect, Homopolymerdetect, Doench_Score, mm0_list, mm1_list, mm2_list, mm3_list)
+      ## Set the names of each column
+      colnames(sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content", "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3")
+      sgRNA_data <- sgRNA_data[order(-sgRNA_data$`Doench Score`),]
+      data_list <- c("sgRNA_data" = sgRNA_data, "all_offtarget_info" = all_offtarget_info)
+      data_list
     }
-    ## Compiles data frame of all off-target annotations
-    more_off_info <- annotate_genome(off_chr, off_start, off_end, off_direction, gtfname)
-    ## Complies all extra sgRNA info into a separate data frame
-    all_offtarget_info <- data.frame(off_sgRNAseq, off_chr, off_start, off_end, off_mismatch, off_direction, off_offseq, more_off_info$geneidlist, more_off_info$genenamelist, more_off_info$sequencetypelist, more_off_info$exonnumberlist)
-    colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
-    ## Put lists in data frame
-    sgRNA_data <- data.frame(sgRNA_seq, sgRNA_PAM, sgRNA_fow_or_rev, sgRNA_start, sgRNA_end, GCinstance, TTTTHomopolymerdetect, Homopolymerdetect, Doench_Score, mm0_list, mm1_list, mm2_list, mm3_list)
-    ## Set the names of each column
-    colnames(sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content", "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3")
-    sgRNA_data <- sgRNA_data[order(-sgRNA_data$`Doench Score`),]
-    data_list <- c("sgRNA_data" = sgRNA_data, "all_offtarget_info" = all_offtarget_info)
-    data_list
   } else {
     data_list <- data.frame()
   }
