@@ -1,6 +1,5 @@
-## This script is designed to be used with "FindsgRNAfunction_Doench2014.R",
-## "Genome_annotation.R", "Doench_Model_Weights_Singleonly.csv",
-## and "Doench_Model_Weights_Doubleonly.csv"
+## This script is designed to be used with "FindsgRNAfunction_Doench2014.R"
+## "Doench_Model_Weights_Singleonly.csv", "Doench_Model_Weights_Doubleonly.csv"
 ## The above files must be in the working directory
 ##
 ## example: setwd("C://Users//Dylan//Desktop//SP")
@@ -34,6 +33,7 @@ library(GenomicRanges)
 library(rtracklayer)
 library(Biostrings)
 library(BSgenome.Hsapiens.UCSC.hg19)
+#library(BSgenome.Hsapiens.UCSC.hg38)
 library(BSgenome.Scerevisiae.UCSC.sacCer2)
 ##library(BSgenome.Mmusculus.UCSC.mm10)
 ##library(BSgenome.Dmelanogaster.UCSC.dm6)
@@ -44,30 +44,33 @@ library(BSgenome.Scerevisiae.UCSC.sacCer2)
 ##library(BSgenome.Athaliana.TAIR.04232008)
 
 ui <- fluidPage(
-  navbarPage("Cas9 Guide Designer",
+  navbarPage("crispRdesignR",
     tabPanel("sgRNA Designer",
       titlePanel("sgRNA Designer"),
       
       sidebarLayout(
         sidebarPanel(
-          textInput("sequence", "Sequence", placeholder = "Paste sequence here"),
-          actionButton("run", "Find sgRNA"),
+          textInput("sequence", "Target Sequence", placeholder = "Paste sequence here"),
+          checkboxInput("fasta", "Use FASTA file as target sequence", value = FALSE),
+          tags$div(id = "placeholder1"),
           selectInput("genome_select", "Select Genome",
-                      c("Homo sapiens (UCSC.hg19)" = "Hsapiens",
-                        "Saccharomyces cerevisiae (UCSC.sacCer2)" = "Scerevisiae",
-                        "Mus musculus (UCSC.mm10)" = "Mmusculus",
-                        "Drosphila melanogaster (UCSC.dm6)" = "Dmelanogaster",
-                        "Pan troglodytes (UCSC.panTro5)" = "Ptroglodytes",
-                        "Escheria coli (NCBI.20080805)" = "Ecoli",
-                        "Caenorhabditis elegans (UCSC.ce11)" = "Celegans",
-                        "Ratus norvegicus (UCSC.rn6)" = "Rnorvegicus",
-                        "Arabidopsis thaliana (TAIR.04232008)" = "Athaliana")),
-          selectInput("scoring_select", "Select Scoring Method (WIP)",
+                      c("Homo sapiens (UCSC.hg19)" = "BSgenome.Hsapiens.UCSC.hg19",
+                        "Homo sapiens (UCSC.hg38)" = "BSgenome.Hsapiens.UCSC.hg38",
+                        "Saccharomyces cerevisiae (UCSC.sacCer2)" = "BSgenome.Scerevisiae.UCSC.sacCer2",
+                        "Mus musculus (UCSC.mm10)" = "BSgenome.Mmusculus.UCSC.mm10",
+                        "Drosphila melanogaster (UCSC.dm6)" = "BSgenome.Dmelanogaster.UCSC.dm6",
+                        "Pan troglodytes (UCSC.panTro5)" = "BSgenome.Ptroglodytes.UCSC.panTro5",
+                        "Escheria coli (NCBI.20080805)" = "BSgenome.Ecoli.NCBI.20080805",
+                        "Caenorhabditis elegans (UCSC.ce11)" = "BSgenome.Celegans.UCSC.ce11",
+                        "Ratus norvegicus (UCSC.rn6)" = "BSgenome.Rnorvegicus.UCSC.rn6",
+                        "Arabidopsis thaliana (TAIR.04232008)" = "BSgenome.Athaliana.TAIR.04232008")),
+          selectInput("scoring_select", "Select Scoring Method",
                       c("Doench Rule Set 1 (2014)" = "Doench_2014",
                         "Doench Rule Set 2 (2016)" = "Doench_2016"),
                       selected = "Doench_2014"),
           checkboxInput("email", "Send me an email with the results", value = FALSE),
-          tags$div(id = "placeholder2")
+          tags$div(id = "placeholder2"),
+          actionButton("run", "Find sgRNA", icon("paper-plane"))
         ),
         mainPanel(  
           tags$div(id = "placeholder3"),
@@ -78,7 +81,24 @@ ui <- fluidPage(
       )
     ),
     tabPanel("Options",
-      titlePanel("Options")
+      titlePanel("Options"),
+      sidebarLayout(
+        sidebarPanel(
+          selectInput("num_of_MM", "Number of Mismatches in Off-Targets",
+                      c("4" = "4MisM",
+                        "3" = "3MisM"),
+                      selected = "4MisM"),
+          selectInput("toggle_off_targets", "Call Off-Targets?",
+                      c("Yes" = "yes_off",
+                        "No" = "no_off"),
+                      selected = "yes_off"),
+          selectInput("toggle_off_annotation", "Annotate Off-Targets?",
+                      c("Yes" = "yes_annotate",
+                        "No" = "no_annotate"),
+                      selected = "yes_annotate")
+        ),
+        mainPanel()
+      )
     ),
     tabPanel("About",
       titlePanel("About"),
@@ -94,7 +114,6 @@ ui <- fluidPage(
 
 server <- function(input, output) {
   ## Sources the file that contains the function for sgRNA design
-  ## and the file for off-target searches
   source("FindsgRNAfunction_Doench2014.R")
   
   ## Creates a list of reactive values that allows the program to
@@ -104,20 +123,26 @@ server <- function(input, output) {
   
   ## Runs the sgRNA_design function when the action button is pressed
   observeEvent(input$run, {
-    # Check to see if input is valid
-    sequence <- paste(input$'sequence', collapse = "")
-    sequence <- str_replace_all(sequence, fixed(" "), "")
+    if (input$'fasta' == TRUE) {
+      sequence <- import(input$'fastafile'$datapath)
+      sequence <- as.character(sequence)
+    } else {
+      # Check to see if input is valid
+      sequence <- paste(input$'sequence', collapse = "")
+      sequence <- str_replace_all(sequence, fixed(" "), "")
+    }
     if (isTRUE(try(class(DNAString(sequence)) == "DNAString"))) {
       # Create a Progress object
       designprogress <- shiny::Progress$new()
       designprogress$set(message = "Finding sgRNA", value = 0, detail = "This may take a while")
       # Close the progress when this reactive exits (even if there's an error)
       on.exit(designprogress$close())
-      all_data <- sgRNA_design(usersequence = input$'sequence', genomename = input$'genome_select', designprogress)
+      all_data <- sgRNA_design(usersequence = sequence, genomename = input$'genome_select', designprogress, 
+                               calloffs = input$'toggle_off_targets', annotateoffs = input$'toggle_off_annotation')
       if ((length(all_data) == 0) == FALSE) {
-        int_sgRNA_data <- data.frame(all_data[1:13])
+        int_sgRNA_data <- data.frame(all_data[1:14])
         colnames(int_sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content",
-                                    "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3")
+                                    "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3", "MM4")
         if (input$run == 1) {
           insertUI(
             selector = "#placeholder3",
@@ -129,7 +154,7 @@ server <- function(input, output) {
           )
         }
         maindf$sgRNA_data <- int_sgRNA_data
-        int_offtarget_data <- data.frame(all_data[14:24])
+        int_offtarget_data <- data.frame(all_data[15:25])
         colnames(int_offtarget_data) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction",
                                           "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
         if (input$run == 1) {
@@ -191,6 +216,25 @@ server <- function(input, output) {
   ## Reactively outputs an sgRNA table when the function is complete
   output$sgRNA_data <- renderDataTable(maindf$sgRNA_data)
   output$offtarget_data <- renderDataTable(offtargetdf$data)
+  
+  ## Add fasta file input to the UI
+  observeEvent(input$fasta, {
+    if (input$fasta == TRUE) {
+      insertUI(
+        selector = "#placeholder1",
+        where = "afterEnd",
+        ui = tags$div(id = 'fastainput',
+                      fileInput("fastafile", "Choose fasta file",
+                                multiple = FALSE)
+        )
+      )
+    } else {
+      removeUI(
+        selector = 'div#fastainput',
+        multiple = FALSE
+      )
+    }
+  })
   
   ## Add email input to the UI
   observeEvent(input$email, {

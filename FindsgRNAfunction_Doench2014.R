@@ -7,11 +7,16 @@
 ##
 ## if stringr needs to be installed:
 ## install.packages("stringr", repos='http://cran.us.r-project.org')
-sgRNA_design <- function(usersequence, genomename, designprogress){
+sgRNA_design <- function(usersequence, genomename, designprogress, calloffs, annotateoffs){
   designprogress$inc(1/10)
-  sequence <- paste(usersequence, collapse = "")
-  sequence <- str_replace_all(sequence, fixed(" "), "")
-  Biostrings_sequence <- DNAString(sequence)
+  if (isTRUE(str_detect(usersequence, ".fasta"))){
+    Biostrings_sequence <- import(usersequence)
+    sequence <- as.character(Biostrings_sequence)
+  } else {
+    sequence <- paste(usersequence, collapse = "")
+    sequence <- str_replace_all(sequence, fixed(" "), "")
+    Biostrings_sequence <- DNAString(sequence)
+  }
   ## Creates a character string that contains the
   ## complementary sequence (Both in the reverse
   ## direction and with substituted nucleotides)
@@ -170,54 +175,68 @@ sgRNA_design <- function(usersequence, genomename, designprogress){
       Doench_Score[[length(Doench_Score)+1]] <- round(1/(1+exp(-(sum(sgRNA_model_weights)))), digits = 3)
       g <- g+1
     }
-    designprogress$inc(amount = 1/10, message = "Checking for off-targets")
-    ## Check for off-targets in the genome
-    ## Creates Function that converts all sgRNAs into a format readable
-    ## by Biostrings
-    multiple_DNAString <- function(seqlist){
-      DNAString(seqlist)
-    }
-    Biostrings_sgRNA <- lapply(sgRNA_with_PAM, multiple_DNAString)
-    ## Define genome
-    usegenome <- get(genomename)
-    seqnames <- seqnames(usegenome)
-    ## Creates a series of lists to store the incoming mismatch information
-    mm0_list <- c()
-    mm1_list <- c()
-    mm2_list <- c()
-    mm3_list <- c()
-    mm4_list <- c()
-    off_start <- c()
-    off_end <- c()
-    off_direction <- c()
-    off_sgRNAseq <- c()
-    off_offseq <- c()
-    off_chr <- c()
-    off_mismatch <- c()
-    ## Decides whether to run a function for a sequence that contains multiple sgRNA or only a single sgRNA
-    if (isTRUE(class(Biostrings_sgRNA) == "list")){
-      ## Creates lists that will store information about off-target info on the individual sgRNA
-      for (pattern in Biostrings_sgRNA) {
-        ini_mm0_list <- c()
-        ini_mm1_list <- c()
-        ini_mm2_list <- c()
-        ini_mm3_list <- c()  
-        ini_mm4_list <- c()
-        ## Creates separate lists for the reverse direction
-        rev_ini_mm0_list <- c()
-        rev_ini_mm1_list <- c()
-        rev_ini_mm2_list <- c()
-        rev_ini_mm3_list <- c()
-        rev_ini_mm4_list <- c()
-        ## Finds the mismatch (MM) info using Biostrings
-        for (seqname in seqnames) {
+    if (calloffs == "no_off") {
+      designprogress$inc(amount = 7/10)
+      mm0_list <- rep("NA", each = length(sgRNA_list))
+      mm1_list <- rep("NA", each = length(sgRNA_list))
+      mm2_list <- rep("NA", each = length(sgRNA_list))
+      mm3_list <- rep("NA", each = length(sgRNA_list))
+      mm4_list <- rep("NA", each = length(sgRNA_list))
+      ## Creates data table with all available sgRNA data
+      sgRNA_data <- data.frame(sgRNA_seq, sgRNA_PAM, sgRNA_fow_or_rev, sgRNA_start, sgRNA_end, GCinstance, TTTTHomopolymerdetect, Homopolymerdetect, Doench_Score, mm0_list, mm1_list, mm2_list, mm3_list, mm4_list)
+      ## Set the names of each column
+      colnames(sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content", "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3", "MM4")
+      sgRNA_data <- sgRNA_data[order(-sgRNA_data$`Doench Score`),]
+      ## Creates an empty data table for off-target annotation
+      all_offtarget_info <- data.frame("NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA")
+      colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
+      data_list <- c("sgRNA_data" = sgRNA_data, "all_offtarget_info" = all_offtarget_info)
+      data_list
+    } else {
+      designprogress$inc(amount = 1/10, message = "Checking for off-targets")
+      ## Check for off-targets in the genome
+      ## Creates Function that converts all sgRNAs into a format readable
+      ## by Biostrings
+      multiple_DNAString <- function(seqlist){
+        DNAString(seqlist)
+      }
+      Biostrings_sgRNA <- lapply(sgRNA_with_PAM, multiple_DNAString)
+      ## Define genome
+      usegenome <- get(genomename)
+      seqnames <- seqnames(usegenome)
+      ## Creates a series of lists to store the incoming mismatch information
+      mm0_list <- c()
+      mm1_list <- c()
+      mm2_list <- c()
+      mm3_list <- c()
+      mm4_list <- c()
+      off_start <- c()
+      off_end <- c()
+      off_direction <- c()
+      off_sgRNAseq <- c()
+      off_offseq <- c()
+      off_chr <- c()
+      off_mismatch <- c()
+      nseq <- length(seqnames)
+      for (seqname in seqnames) {
+        designprogress$inc(amount = (1/nseq)*.5, message = paste("Checking for Off-Targets in", seqname, sep = " "))
+        chrmm0_list <- c()
+        chrmm1_list <- c()
+        chrmm2_list <- c()
+        chrmm3_list <- c()
+        chrmm4_list <- c()
+        revchrmm0_list <- c()
+        revchrmm1_list <- c()
+        revchrmm2_list <- c()
+        revchrmm3_list <- c()
+        revchrmm4_list <- c()
+        for (pattern in Biostrings_sgRNA) {
           subject <- usegenome[[seqname]]
-          off_info <- matchPattern(pattern, subject, max.mismatch = 3, min.mismatch = 0)
+          off_info <- matchPattern(pattern, subject, max.mismatch = 4, min.mismatch = 0)
           mis_info <- mismatch(pattern, off_info)
           rev_pattern <- reverseComplement(pattern)
-          rev_off_info <- matchPattern(rev_pattern, subject, max.mismatch = 3, min.mismatch = 0)
+          rev_off_info <- matchPattern(rev_pattern, subject, max.mismatch = 4, min.mismatch = 0)
           rev_mis_info <- mismatch(rev_pattern, rev_off_info)
-          ## Puts all forward MM info into lists to later be put into data frame
           if (length(off_info) > 0) {
             for (f in 1:length(off_info)) {
               off_start[[length(off_start)+1]] <- start(off_info)[f]
@@ -229,22 +248,6 @@ sgRNA_design <- function(usersequence, genomename, designprogress){
               off_offseq[[length(off_offseq)+1]] <- as.character(off_info[[f]])
             }
           }
-          ## Adds forward MM counts to lists
-          if (length(mis_info) > 0) {
-            for (f in 1:length(mis_info)) {
-              ini_mm0_list[[length(ini_mm0_list)+1]] <- sum(length(mis_info[[f]]) == 0)
-              ini_mm1_list[[length(ini_mm1_list)+1]] <- sum(length(mis_info[[f]]) == 1)
-              ini_mm2_list[[length(ini_mm2_list)+1]] <- sum(length(mis_info[[f]]) == 2)
-              ini_mm3_list[[length(ini_mm3_list)+1]] <- sum(length(mis_info[[f]]) == 3)
-            }
-          ## Adds zeroes to all lists if there is no MM info
-          } else {
-            ini_mm0_list[[length(ini_mm0_list)+1]] <- 0
-            ini_mm1_list[[length(ini_mm1_list)+1]] <- 0
-            ini_mm2_list[[length(ini_mm2_list)+1]] <- 0
-            ini_mm3_list[[length(ini_mm3_list)+1]] <- 0
-          }
-          ## Puts all reverse MM info into lists to later be put into data frame
           if (length(rev_off_info) > 0) {
             for (f in 1:length(rev_off_info)) {
               off_start[[length(off_start)+1]] <- start(rev_off_info)[f]
@@ -256,142 +259,134 @@ sgRNA_design <- function(usersequence, genomename, designprogress){
               off_offseq[[length(off_offseq)+1]] <- as.character(rev_off_info[[f]])
             }
           }
-          ## Adds reverse MM counts to lists
+          individMM <- c()
+          if (length(mis_info) > 0) {
+            for (f in 1:length(mis_info)) {
+              individMM[[length(individMM)+1]] <- length(mis_info[[f]])
+            }
+            chrmm0_list[[length(chrmm0_list)+1]] <- sum(individMM == 0)
+            chrmm1_list[[length(chrmm1_list)+1]] <- sum(individMM == 1)
+            chrmm2_list[[length(chrmm2_list)+1]] <- sum(individMM == 2)
+            chrmm3_list[[length(chrmm3_list)+1]] <- sum(individMM == 3)
+            chrmm4_list[[length(chrmm4_list)+1]] <- sum(individMM == 4)
+          } else {
+            chrmm0_list[[length(chrmm0_list)+1]] <- 0
+            chrmm1_list[[length(chrmm1_list)+1]] <- 0
+            chrmm2_list[[length(chrmm2_list)+1]] <- 0
+            chrmm3_list[[length(chrmm3_list)+1]] <- 0
+            chrmm4_list[[length(chrmm4_list)+1]] <- 0
+          }
+          individMM <- c()
           if (length(rev_mis_info) > 0) {
             for (f in 1:length(rev_mis_info)) {
-              rev_ini_mm0_list[[length(rev_ini_mm0_list)+1]] <- sum(length(rev_mis_info[[f]]) == 0)
-              rev_ini_mm1_list[[length(rev_ini_mm1_list)+1]] <- sum(length(rev_mis_info[[f]]) == 1)
-              rev_ini_mm2_list[[length(rev_ini_mm2_list)+1]] <- sum(length(rev_mis_info[[f]]) == 2)
-              rev_ini_mm3_list[[length(rev_ini_mm3_list)+1]] <- sum(length(rev_mis_info[[f]]) == 3)
-          }
-          ## Adds zeroes to all lists if there is no MM info
+              individMM[[length(individMM)+1]] <- length(rev_mis_info[[f]])
+            }
+            revchrmm0_list[[length(revchrmm0_list)+1]] <- sum(individMM == 0)
+            revchrmm1_list[[length(revchrmm1_list)+1]] <- sum(individMM == 1)
+            revchrmm2_list[[length(revchrmm2_list)+1]] <- sum(individMM == 2)
+            revchrmm3_list[[length(revchrmm3_list)+1]] <- sum(individMM == 3)
+            revchrmm4_list[[length(revchrmm4_list)+1]] <- sum(individMM == 4)
           } else {
-            rev_ini_mm0_list[[length(rev_ini_mm0_list)+1]] <- 0
-            rev_ini_mm1_list[[length(rev_ini_mm1_list)+1]] <- 0
-            rev_ini_mm2_list[[length(rev_ini_mm2_list)+1]] <- 0
-            rev_ini_mm3_list[[length(rev_ini_mm3_list)+1]] <- 0
+            revchrmm0_list[[length(revchrmm0_list)+1]] <- 0
+            revchrmm1_list[[length(revchrmm1_list)+1]] <- 0
+            revchrmm2_list[[length(revchrmm2_list)+1]] <- 0
+            revchrmm3_list[[length(revchrmm3_list)+1]] <- 0
+            revchrmm4_list[[length(revchrmm4_list)+1]] <- 0
           }
         }
-        ## Compiles list of all MM counts for one sgRNA
-        mm0_list[[length(mm0_list)+1]] <- (sum(ini_mm0_list) + sum(rev_ini_mm0_list))
-        mm1_list[[length(mm1_list)+1]] <- (sum(ini_mm1_list) + sum(rev_ini_mm1_list))
-        mm2_list[[length(mm2_list)+1]] <- (sum(ini_mm2_list) + sum(rev_ini_mm2_list))
-        mm3_list[[length(mm3_list)+1]] <- (sum(ini_mm3_list) + sum(rev_ini_mm3_list))
-      }
-    ## Finds the mismatch (MM) info using Biostrings (only used if there is a single sgRNA)
-    } else {
-      ini_mm0_list <- c()
-      ini_mm1_list <- c()
-      ini_mm2_list <- c()
-      ini_mm3_list <- c()
-      rev_ini_mm0_list <- c()
-      rev_ini_mm1_list <- c()
-      rev_ini_mm2_list <- c()
-      rev_ini_mm3_list <- c()
-      for (seqname in seqnames) {
-        subject <- usegenome[[seqname]]
-        off_info <- matchPattern(Biostrings_sgRNA, subject, max.mismatch = 4, min.mismatch = 0)
-        mis_info <- mismatch(Biostrings_sgRNA, off_info)
-        rev_Biostrings_sgRNA <- reverseComplement(Biostrings_sgRNA)
-        rev_off_info <- matchPattern(rev_Biostrings_sgRNA, subject, max.mismatch = 4, min.mismatch = 0)
-        rev_mis_info <- mismatch(rev_Biostrings_sgRNA, rev_off_info)
-        if (length(mis_info) > 0) {
-          for (f in 1:length(mis_info)) {
-            ini_mm0_list[[length(ini_mm0_list)+1]] <- sum(length(mis_info[[f]]) == 0)
-            ini_mm1_list[[length(ini_mm1_list)+1]] <- sum(length(mis_info[[f]]) == 1)
-            ini_mm2_list[[length(ini_mm2_list)+1]] <- sum(length(mis_info[[f]]) == 2)
-            ini_mm3_list[[length(ini_mm3_list)+1]] <- sum(length(mis_info[[f]]) == 3)
-          }
+        if (is.null(mm0_list)) {
+          mm0_list <- chrmm0_list + revchrmm0_list
+          mm1_list <- chrmm1_list + revchrmm1_list
+          mm2_list <- chrmm2_list + revchrmm2_list
+          mm3_list <- chrmm3_list + revchrmm3_list
+          mm4_list <- chrmm4_list + revchrmm4_list
         } else {
-          ini_mm0_list[[length(ini_mm0_list)+1]] <- 0
-          ini_mm1_list[[length(ini_mm1_list)+1]] <- 0
-          ini_mm2_list[[length(ini_mm2_list)+1]] <- 0
-          ini_mm3_list[[length(ini_mm3_list)+1]] <- 0
-        }
-        if (length(rev_mis_info) > 0) {
-          for (f in 1:length(rev_mis_info)) {
-            rev_ini_mm0_list[[length(rev_ini_mm0_list)+1]] <- sum(length(rev_mis_info[[f]]) == 0)
-            rev_ini_mm1_list[[length(rev_ini_mm1_list)+1]] <- sum(length(rev_mis_info[[f]]) == 1)
-            rev_ini_mm2_list[[length(rev_ini_mm2_list)+1]] <- sum(length(rev_mis_info[[f]]) == 2)
-            rev_ini_mm3_list[[length(rev_ini_mm3_list)+1]] <- sum(length(rev_mis_info[[f]]) == 3)
-          }
-        } else {
-          rev_ini_mm0_list[[length(rev_ini_mm0_list)+1]] <- 0
-          rev_ini_mm1_list[[length(rev_ini_mm1_list)+1]] <- 0
-          rev_ini_mm2_list[[length(rev_ini_mm2_list)+1]] <- 0
-          rev_ini_mm3_list[[length(rev_ini_mm3_list)+1]] <- 0
+          mm0_list <- chrmm0_list + mm0_list + revchrmm0_list
+          mm1_list <- chrmm1_list + mm1_list + revchrmm1_list
+          mm2_list <- chrmm2_list + mm2_list + revchrmm2_list
+          mm3_list <- chrmm3_list + mm3_list + revchrmm3_list
+          mm4_list <- chrmm4_list + mm4_list + revchrmm4_list
         }
       }
-      ## Creates the final MM list that includes all sgRNA sequences
-      mm0_list[[length(mm0_list)+1]] <- (sum(ini_mm0_list) + sum(rev_ini_mm0_list))
-      mm1_list[[length(mm1_list)+1]] <- (sum(ini_mm1_list) + sum(rev_ini_mm1_list))
-      mm2_list[[length(mm2_list)+1]] <- (sum(ini_mm2_list) + sum(rev_ini_mm2_list))
-      mm3_list[[length(mm3_list)+1]] <- (sum(ini_mm3_list) + sum(rev_ini_mm3_list))
+      if (((sum(mm0_list) + sum(mm1_list) + sum(mm2_list) + sum(mm3_list)) == 0) || (annotateoffs == "no_annotate")) {
+        designprogress$inc(amount = 1/10, message = "Compiling Data")
+        all_offtarget_info <- data.frame("NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA")
+        colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
+        ## Put lists in data frame
+        sgRNA_data <- data.frame(sgRNA_seq, sgRNA_PAM, sgRNA_fow_or_rev, sgRNA_start, sgRNA_end, GCinstance, TTTTHomopolymerdetect, Homopolymerdetect, Doench_Score, mm0_list, mm1_list, mm2_list, mm3_list, mm4_list)
+        ## Set the names of each column
+        colnames(sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content", "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3", "MM4")
+        sgRNA_data <- sgRNA_data[order(-sgRNA_data$`Doench Score`),]
+        designprogress$inc(1/10)
+        data_list <- c("sgRNA_data" = sgRNA_data, "all_offtarget_info" = all_offtarget_info)
+        data_list
+      } else {
+        designprogress$inc(amount = 0, message = "Annotating Off-Targets")
+        ## Creates a function that annotates the off-targets called above
+        annotate_genome <- function(ochr, ostart, oend, odir, genomename) {  
+          if (as.character(genomename) == "BSgenome.Scerevisiae.UCSC.sacCer2") {
+            gtf <- import("Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz")
+          }
+          if (as.character(genomename) == "BSgenome.Hsapiens.UCSC.hg19") {
+            gtf <- import("Homo_sapiens.GRCh38.92.gtf.gz")
+          }
+          seqlevelsStyle(gtf) <- "UCSC"
+          seqer <- unlist(ochr)
+          starter <- as.numeric(ostart)
+          ender <- as.numeric(unlist(oend))
+          strander <- unlist(odir)
+          off_ranges <- GRanges(seqer, IRanges(starter, ender), strander)
+          olaps <- findOverlaps(off_ranges, gtf)
+          geneid <- c()
+          geneidlist <- c()
+          genename <- c()
+          genenamelist <- c()
+          sequencetype <- c()
+          sequencetypelist <- c()
+          exonnumber <- c()
+          exonnumberlist <- c()
+          mcols(off_ranges)$gene_id <- c()
+          for (p in 1:length(off_ranges)) {
+            if (p %in% queryHits(olaps)) {
+              geneid <- mcols(gtf)$gene_id[subjectHits(olaps[which(p == queryHits(olaps))])]
+              geneid <- unique(geneid)
+              geneidlist[[length(geneidlist)+1]] <- paste(geneid, collapse = ", ")
+              genename <- mcols(gtf)$gene_name[subjectHits(olaps[which(p == queryHits(olaps))])]
+              genename <- unique(genename)
+              genenamelist[[length(genenamelist)+1]] <- paste(genename, collapse = ", ")
+              sequencetype <- mcols(gtf)$type[subjectHits(olaps[which(p == queryHits(olaps))])]
+              sequencetype <- unique(sequencetype)
+              sequencetypelist[[length(sequencetypelist)+1]] <- paste(sequencetype, collapse = ", ")
+              exonnumber <- mcols(gtf)$exon_number[subjectHits(olaps[which(p == queryHits(olaps))])]
+              exonnumber <- unique(exonnumber)
+              exonnumberlist[[length(exonnumberlist)+1]] <- paste(exonnumber, collapse = ", ")
+            } else {
+              geneidlist[[length(geneidlist)+1]] <- "NA"
+              genenamelist[[length(genenamelist)+1]] <- "NA"
+              sequencetypelist[[length(sequencetypelist)+1]] <- "NA"
+              exonnumberlist[[length(exonnumberlist)+1]] <- "NA"
+            }
+          }
+          mcols(off_ranges)$gene_id <- geneidlist
+          more_off_info <- data.frame(geneidlist, genenamelist, sequencetypelist, exonnumberlist)
+          more_off_info
+        }
+        ## Compiles data frame of all off-target annotations
+        more_off_info <- annotate_genome(off_chr, off_start, off_end, off_direction, genomename)
+        designprogress$inc(amount = 1/10, message = "Compiling Data")
+        ## Complies all extra sgRNA info into a separate data frame
+        all_offtarget_info <- data.frame(off_sgRNAseq, off_chr, off_start, off_end, off_mismatch, off_direction, off_offseq, more_off_info$geneidlist, more_off_info$genenamelist, more_off_info$sequencetypelist, more_off_info$exonnumberlist)
+        colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
+        ## Put lists in data frame
+        sgRNA_data <- data.frame(sgRNA_seq, sgRNA_PAM, sgRNA_fow_or_rev, sgRNA_start, sgRNA_end, GCinstance, TTTTHomopolymerdetect, Homopolymerdetect, Doench_Score, mm0_list, mm1_list, mm2_list, mm3_list, mm4_list)
+        ## Set the names of each column
+        colnames(sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content", "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3", "MM4")
+        sgRNA_data <- sgRNA_data[order(-sgRNA_data$`Doench Score`),]
+        designprogress$inc(1/10)
+        data_list <- c("sgRNA_data" = sgRNA_data, "all_offtarget_info" = all_offtarget_info)
+        data_list
+      }
     }
-    designprogress$inc(5/10)
-    ## Creates a function that annotates the off-targets called above
-    annotate_genome <- function(ochr, ostart, oend, odir, genomename) {  
-      if (as.character(genomename) == "Scerevisiae") {
-        gtf <- import("Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz")
-      }
-      if (as.character(genomename) == "Hsapiens") {
-        gtf <- import("Homo_sapiens.GRCh38.92.gtf.gz")
-      }
-      seqlevelsStyle(gtf) <- "UCSC"
-      seqer <- unlist(ochr)
-      starter <- as.numeric(ostart)
-      ender <- as.numeric(unlist(oend))
-      strander <- unlist(odir)
-      off_ranges <- GRanges(seqer, IRanges(starter, ender), strander)
-      olaps <- findOverlaps(off_ranges, gtf)
-      geneid <- c()
-      geneidlist <- c()
-      genename <- c()
-      genenamelist <- c()
-      sequencetype <- c()
-      sequencetypelist <- c()
-      exonnumber <- c()
-      exonnumberlist <- c()
-      mcols(off_ranges)$gene_id <- c()
-      for (p in 1:length(off_ranges)) {
-        if (p %in% queryHits(olaps)) {
-          geneid <- mcols(gtf)$gene_id[subjectHits(olaps[which(p == queryHits(olaps))])]
-          geneid <- unique(geneid)
-          geneidlist[[length(geneidlist)+1]] <- paste(geneid, collapse = ", ")
-          genename <- mcols(gtf)$gene_name[subjectHits(olaps[which(p == queryHits(olaps))])]
-          genename <- unique(genename)
-          genenamelist[[length(genenamelist)+1]] <- paste(genename, collapse = ", ")
-          sequencetype <- mcols(gtf)$type[subjectHits(olaps[which(p == queryHits(olaps))])]
-          sequencetype <- unique(sequencetype)
-          sequencetypelist[[length(sequencetypelist)+1]] <- paste(sequencetype, collapse = ", ")
-          exonnumber <- mcols(gtf)$exon_number[subjectHits(olaps[which(p == queryHits(olaps))])]
-          exonnumber <- unique(exonnumber)
-          exonnumberlist[[length(exonnumberlist)+1]] <- paste(exonnumber, collapse = ", ")
-        } else {
-          geneidlist[[length(geneidlist)+1]] <- "NA"
-          genenamelist[[length(genenamelist)+1]] <- "NA"
-          sequencetypelist[[length(sequencetypelist)+1]] <- "NA"
-          exonnumberlist[[length(exonnumberlist)+1]] <- "NA"
-        }
-      }
-      mcols(off_ranges)$gene_id <- geneidlist
-      more_off_info <- data.frame(geneidlist, genenamelist, sequencetypelist, exonnumberlist)
-      more_off_info
-    }
-    ## Compiles data frame of all off-target annotations
-    more_off_info <- annotate_genome(off_chr, off_start, off_end, off_direction, genomename)
-    designprogress$inc(1/10)
-    ## Complies all extra sgRNA info into a separate data frame
-    all_offtarget_info <- data.frame(off_sgRNAseq, off_chr, off_start, off_end, off_mismatch, off_direction, off_offseq, more_off_info$geneidlist, more_off_info$genenamelist, more_off_info$sequencetypelist, more_off_info$exonnumberlist)
-    colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
-    ## Put lists in data frame
-    sgRNA_data <- data.frame(sgRNA_seq, sgRNA_PAM, sgRNA_fow_or_rev, sgRNA_start, sgRNA_end, GCinstance, TTTTHomopolymerdetect, Homopolymerdetect, Doench_Score, mm0_list, mm1_list, mm2_list, mm3_list)
-    ## Set the names of each column
-    colnames(sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content", "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3")
-    sgRNA_data <- sgRNA_data[order(-sgRNA_data$`Doench Score`),]
-    designprogress$inc(1/10)
-    data_list <- c("sgRNA_data" = sgRNA_data, "all_offtarget_info" = all_offtarget_info)
-    data_list
   } else {
     data_list <- data.frame()
   }
