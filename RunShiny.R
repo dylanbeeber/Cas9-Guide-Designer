@@ -154,8 +154,8 @@ server <- function(input, output) {
           )
         }
         maindf$sgRNA_data <- int_sgRNA_data
-        int_offtarget_data <- data.frame(all_data[15:25])
-        colnames(int_offtarget_data) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction",
+        int_offtarget_data <- data.frame(all_data[15:26])
+        colnames(int_offtarget_data) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "CFD Scores",
                                           "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
         if (input$run == 1) {
           insertUI(

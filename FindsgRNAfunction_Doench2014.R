@@ -120,9 +120,7 @@ sgRNA_design <- function(usersequence, genomename, designprogress, calloffs, ann
     }
     TTTTHomopolymerdetect <- sapply(sgRNA_seq, FindTTTThomopolymer)
     designprogress$inc(1/10)
-    ## Detect if self complementary (not currently implemented)
     ## Assign a study-based efficiency score
-    ## ***Need to add GC Penalty
     ## Following two lines retrieve the penalty constants (one for single nucleotides, the other for paired nucleotides)
     Doench_model_weights_singleonly <- read.csv("Doench_Model_Weights_Singleonly.csv", header = FALSE)
     Doench_model_weights_doubleonly <- read.csv("Doench_Model_Weights_Doubleonly.csv", header = FALSE)
@@ -188,8 +186,8 @@ sgRNA_design <- function(usersequence, genomename, designprogress, calloffs, ann
       colnames(sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content", "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3", "MM4")
       sgRNA_data <- sgRNA_data[order(-sgRNA_data$`Doench Score`),]
       ## Creates an empty data table for off-target annotation
-      all_offtarget_info <- data.frame("NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA")
-      colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
+      all_offtarget_info <- data.frame("NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA")
+      colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "CFD Score", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
       data_list <- c("sgRNA_data" = sgRNA_data, "all_offtarget_info" = all_offtarget_info)
       data_list
     } else {
@@ -308,10 +306,58 @@ sgRNA_design <- function(usersequence, genomename, designprogress, calloffs, ann
           mm4_list <- chrmm4_list + mm4_list + revchrmm4_list
         }
       }
+      ## Calculates off-target scores for each off target sequence
+      CFD_Model_Scores <- read.csv("CFD_Scoring.csv")
+      off_model_PAMs <- c("AG", "CG", "GA", "GC", "GT", "TG")
+      CFD_PAM_Scores <- data.frame(off_model_PAMs, c(0.259259, 0.107142, 0.069444, 0.022222, 0.016129, 0.038961))
+      CFD_Scores <- c()
+      for (x in 1:length(off_offseq)) {
+        if (off_direction[x] == "-") {
+          temporary_off <- DNAString(off_offseq[x])
+          temporary_off <- reverseComplement(temporary_off)
+          CFDoffsplit <- str_split(temporary_off, "", simplify = TRUE)
+        } else {
+          CFDoffsplit <- str_split(off_offseq[x], "", simplify = TRUE)
+        }
+        CFDsgRNAsplit <- str_split(off_sgRNAseq[x], "", simplify = TRUE)
+        individ_scores <- c()
+        for (g in 1:20) {
+          if (CFDsgRNAsplit[g] != CFDoffsplit[g]) {
+            index <- which(CFD_Model_Scores$Position==g & CFD_Model_Scores$sgRNA==CFDsgRNAsplit[g] & CFD_Model_Scores$DNA==CFDoffsplit[g])
+            individ_scores[[length(individ_scores)+1]] <- CFD_Model_Scores[index,4]
+          }
+        }
+        specific_PAM <- (paste(CFDoffsplit[22], CFDoffsplit[23], sep = ""))
+        if (isTRUE(specific_PAM != "GG")){
+          if (specific_PAM %in% off_model_PAMs) {
+            PAM_index <- which(off_model_PAMs==specific_PAM)
+            individ_scores[[length(individ_scores)+1]] <- CFD_PAM_Scores[PAM_index,2]
+          } else {
+            individ_scores[[length(individ_scores)+1]] <- 0
+          }
+        }
+        if (length(individ_scores) == 0) {
+          CFD_Scores[[length(CFD_Scores)+1]] <- 1
+        }
+        if (length(individ_scores) == 1) {
+          CFD_Scores[[length(CFD_Scores)+1]] <- individ_scores[1]
+        }
+        if (length(individ_scores) == 2) {
+          CFD_Scores[[length(CFD_Scores)+1]] <- prod(individ_scores[1], individ_scores[2])
+        }
+        if (length(individ_scores) == 3) {
+          CFD_Scores[[length(CFD_Scores)+1]] <- prod(individ_scores[1], individ_scores[2], individ_scores[3])
+        }
+        if (length(individ_scores) == 4) {
+          CFD_Scores[[length(CFD_Scores)+1]] <- prod(individ_scores[1], individ_scores[2], individ_scores[3], individ_scores[4])
+        }
+      }
+      CFD_Scores <- round(CFD_Scores, digits = 3)
+      ## Decides whether to annotate off-target sequnces or not
       if (((sum(mm0_list) + sum(mm1_list) + sum(mm2_list) + sum(mm3_list)) == 0) || (annotateoffs == "no_annotate")) {
         designprogress$inc(amount = 1/10, message = "Compiling Data")
-        all_offtarget_info <- data.frame("NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA")
-        colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
+        all_offtarget_info <- data.frame("NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA", "NA")
+        colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "CFD Score", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
         ## Put lists in data frame
         sgRNA_data <- data.frame(sgRNA_seq, sgRNA_PAM, sgRNA_fow_or_rev, sgRNA_start, sgRNA_end, GCinstance, TTTTHomopolymerdetect, Homopolymerdetect, Doench_Score, mm0_list, mm1_list, mm2_list, mm3_list, mm4_list)
         ## Set the names of each column
@@ -375,8 +421,8 @@ sgRNA_design <- function(usersequence, genomename, designprogress, calloffs, ann
         more_off_info <- annotate_genome(off_chr, off_start, off_end, off_direction, genomename)
         designprogress$inc(amount = 1/10, message = "Compiling Data")
         ## Complies all extra sgRNA info into a separate data frame
-        all_offtarget_info <- data.frame(off_sgRNAseq, off_chr, off_start, off_end, off_mismatch, off_direction, off_offseq, more_off_info$geneidlist, more_off_info$genenamelist, more_off_info$sequencetypelist, more_off_info$exonnumberlist)
-        colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
+        all_offtarget_info <- data.frame(off_sgRNAseq, off_chr, off_start, off_end, off_mismatch, off_direction, CFD_Scores, off_offseq, more_off_info$geneidlist, more_off_info$genenamelist, more_off_info$sequencetypelist, more_off_info$exonnumberlist)
+        colnames(all_offtarget_info) <- c("sgRNA sequence", "Chromosome", "Start", "End", "Mismatches", "Direction", "CFD Scores", "Off-target sequence", "Gene ID", "Gene Name", "Sequence Type", "Exon Number")
         ## Put lists in data frame
         sgRNA_data <- data.frame(sgRNA_seq, sgRNA_PAM, sgRNA_fow_or_rev, sgRNA_start, sgRNA_end, GCinstance, TTTTHomopolymerdetect, Homopolymerdetect, Doench_Score, mm0_list, mm1_list, mm2_list, mm3_list, mm4_list)
         ## Set the names of each column
