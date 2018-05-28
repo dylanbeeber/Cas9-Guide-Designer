@@ -1,6 +1,9 @@
 # Cas9-Guide-Designer
 Software used to design guide RNA sequences for CRISPR/Cas9 genome editing
 
+This directory contains files used to develop the crispRdesignR package and a User Interface (in Shiny) to run the crispRdesignR tool through a browser.
+For the R package crispRdesignR, see https://github.com/dylanbeeber/crispRdesignR
+
 This software aims to provide all scientifically pertinent information when designing guide RNA sequences for Cas9 genome editing. When provided a target DNA sequence for editing, a genome to check for off-targets in, and a genome annotation file (.gtf) to provide addition information about off-target matches it will out put information for two separate data tables. The first table contains all information on the generated sgRNA themselves (sgRNA sequence, PAM, Direction, Start, End, GC content, Presence of Homopolymers, Effciency Score (Doench 2014), and Genomic Matches). The second table contains all information on the found off-target sequences (Original sgRNA Sequence, Chromosome, Start, End, Number of Mismatches, Direction, Matched Sequence, Gene ID, Gene Name, Sequence Type, and Exon Number)
 
 # Required files:
@@ -40,7 +43,7 @@ available.genomes()
 
 When a genome has been selected use the following code:
 
-biocLite("your.genenome")
+biocLite("your.genome")
 
 Example: biocLite("BSgenome.Hsapiens.UCSC.hg19")
 
