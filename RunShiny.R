@@ -68,6 +68,8 @@ ui <- fluidPage(
                       c("Doench Rule Set 1 (2014)" = "Doench_2014",
                         "Doench Rule Set 2 (2016)" = "Doench_2016"),
                       selected = "Doench_2014"),
+          checkboxInput("options_toggle", "Additional Options", value = FALSE),
+          tags$div(id = "placeholder5"),
           checkboxInput("email", "Send me an email with the results", value = FALSE),
           tags$div(id = "placeholder2"),
           actionButton("run", "Find sgRNA", icon("paper-plane"))
@@ -78,26 +80,6 @@ ui <- fluidPage(
           tags$div(id = "placeholder4"),
           dataTableOutput("offtarget_data")
         )
-      )
-    ),
-    tabPanel("Options",
-      titlePanel("Options"),
-      sidebarLayout(
-        sidebarPanel(
-          selectInput("num_of_MM", "Number of Mismatches in Off-Targets",
-                      c("4" = "4MisM",
-                        "3" = "3MisM"),
-                      selected = "4MisM"),
-          selectInput("toggle_off_targets", "Call Off-Targets?",
-                      c("Yes" = "yes_off",
-                        "No" = "no_off"),
-                      selected = "yes_off"),
-          selectInput("toggle_off_annotation", "Annotate Off-Targets?",
-                      c("Yes" = "yes_annotate",
-                        "No" = "no_annotate"),
-                      selected = "yes_annotate")
-        ),
-        mainPanel()
       )
     ),
     tabPanel("About",
@@ -121,8 +103,14 @@ server <- function(input, output) {
   maindf <- reactiveValues(data = NULL)
   offtargetdf <- reactiveValues(data = NULL)
   
+  ## Creates default values for the arguments in the find sgRNA function
+  callofftargets <- "yes_off"
+  annotateofftargets <- "yes_annotate"
+  
   ## Runs the sgRNA_design function when the action button is pressed
   observeEvent(input$run, {
+    callofftargets <- input$toggle_off_targets
+    annotateofftargets <- input$toggle_off_annotation
     if (input$'fasta' == TRUE) {
       sequence <- import(input$'fastafile'$datapath)
       sequence <- as.character(sequence)
@@ -138,7 +126,7 @@ server <- function(input, output) {
       # Close the progress when this reactive exits (even if there's an error)
       on.exit(designprogress$close())
       all_data <- sgRNA_design(usersequence = sequence, genomename = input$'genome_select', designprogress, 
-                               calloffs = input$'toggle_off_targets', annotateoffs = input$'toggle_off_annotation')
+                               calloffs = callofftargets, annotateoffs = annotateofftargets)
       if ((length(all_data) == 0) == FALSE) {
         int_sgRNA_data <- data.frame(all_data[1:14])
         colnames(int_sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content",
@@ -188,13 +176,13 @@ server <- function(input, output) {
       } else {
         showModal(modalDialog(
           title = "Error",
-          "Error! No sgRNA were generated from sequence"
+          "No sgRNA were generated from sequence"
         ))
       }
     } else {
       showModal(modalDialog(
         title = "Error",
-        "Error! Sequence may contain unsupported characters"
+        "Sequence may contain unsupported characters"
       ))
     }
   })
@@ -236,6 +224,31 @@ server <- function(input, output) {
     }
   })
   
+  ## Add Additional Options input to the UI
+  observeEvent(input$options_toggle, {
+    if (input$options_toggle == TRUE) {
+      insertUI(
+        selector = "#placeholder5",
+        where = "afterEnd",
+        ui = tags$div(id = 'optionsmenu',
+                      selectInput("toggle_off_targets", "Call Off-Targets?",
+                                  c("Yes" = "yes_off",
+                                    "No" = "no_off"),
+                                  selected = "yes_off"),
+                      selectInput("toggle_off_annotation", "Annotate Off-Targets?",
+                                  c("Yes" = "yes_annotate",
+                                    "No" = "no_annotate"),
+                                  selected = "yes_annotate")
+        )
+      )
+    } else {
+      removeUI(
+        selector = 'div#optionsmenu',
+        multiple = TRUE
+      )
+    }
+  })
+
   ## Add email input to the UI
   observeEvent(input$email, {
     if (input$email == TRUE) {
