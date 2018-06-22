@@ -5,14 +5,10 @@
 ## example: setwd("C://Users//Dylan//Desktop//SP")
 ##
 ##
-## To run this program, a computer must have offline Java installed
-##
 ## if packages need to be installed
 ## install.packages("shiny")
 ## install.packages("stringr", repos='http://cran.us.r-project.org')
 ## install.packages("stringi")
-## install.packages("mailR", dep = TRUE)
-## install.packages("rJava")
 ## source("https://bioconductor.org/biocLite.R")
 ## biocLite("Biostrings", "BSgenome", "BSgenome.Hsapiens.UCSC.hg19", "AnnotationHub")
 ## biocLite("BSgenome.Scerevisiae.UCSC.sacCer2") 
@@ -26,8 +22,6 @@
 ##library(rsconnect)
 library(shiny)
 library(stringr)
-library(rJava)
-library(mailR)
 library(IRanges)
 library(GenomicRanges)
 library(rtracklayer)
@@ -70,8 +64,6 @@ ui <- fluidPage(
                       selected = "Doench_2014"),
           checkboxInput("options_toggle", "Additional Options", value = FALSE),
           tags$div(id = "placeholder5"),
-          checkboxInput("email", "Send me an email with the results", value = FALSE),
-          tags$div(id = "placeholder2"),
           actionButton("run", "Find sgRNA", icon("paper-plane"))
         ),
         mainPanel(  
@@ -109,8 +101,12 @@ server <- function(input, output) {
   
   ## Runs the sgRNA_design function when the action button is pressed
   observeEvent(input$run, {
-    callofftargets <- input$toggle_off_targets
-    annotateofftargets <- input$toggle_off_annotation
+    if (exists("input$toggle_off_targets") == TRUE) {
+      callofftargets <- input$toggle_off_targets
+    }
+    if (exists("input$toggle_off_annotation") == TRUE) {
+      annotateofftargets <- input$toggle_off_annotation
+    }
     if (input$'fasta' == TRUE) {
       sequence <- import(input$'fastafile'$datapath)
       sequence <- as.character(sequence)
@@ -154,24 +150,6 @@ server <- function(input, output) {
                           downloadButton("Download_off", "Download Off-Targets")
             )
           )
-        }
-        offtargetdf$data <- int_offtarget_data
-        if (input$email == TRUE) {
-          recipient <- input$recipientbox
-          project <- input$project_title
-          write.csv(maindf$sgRNA_data, file = "sgRNA data.csv")
-          write.csv(offtargetdf$data, file = "Off-Target data.csv")
-          ## Sends an email to an address entered into the UI
-          send.mail(from = "<uml.sgRNA.design@gmail.com>",
-                    to = paste("<", recipient, ">", sep = ""),
-                    subject = paste("sgRNA Design data for", project),
-                    body = "Your sgRNA data is attached",
-                    smtp = list(host.name = "smtp.gmail.com", port = 465,
-                                user.name = "uml.sgRNA.design@gmail.com",
-                                passwd = "tg5pvm19zq", ssl = TRUE),
-                    authenticate = TRUE,
-                    send = TRUE,
-                    attach.files = "sgRNA_data.csv", "Off-Target data.csv")
         }
       } else {
         showModal(modalDialog(
@@ -248,25 +226,7 @@ server <- function(input, output) {
       )
     }
   })
-
-  ## Add email input to the UI
-  observeEvent(input$email, {
-    if (input$email == TRUE) {
-      insertUI(
-        selector = "#placeholder2",
-        where = "afterEnd",
-        ui = tags$div(id = 'emailinfo',
-                      textInput("recipientbox", NULL, placeholder = "Enter your email here"),
-                      textInput("project_title", NULL, placeholder = "Enter a name for your project")
-        )
-      )
-    } else {
-      removeUI(
-        selector = 'div#emailinfo',
-        multiple = TRUE
-      )
-    }
-  })
+  
 }
 
 shinyApp(ui=ui, server=server)
