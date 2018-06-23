@@ -62,6 +62,7 @@ ui <- fluidPage(
                       c("Doench Rule Set 1 (2014)" = "Doench_2014",
                         "Doench Rule Set 2 (2016)" = "Doench_2016"),
                       selected = "Doench_2014"),
+          textInput("gtf_file", "Select genome annotation file (.gtf)", placeholder = "Paste filename with extension here"),
           checkboxInput("options_toggle", "Additional Options", value = FALSE),
           tags$div(id = "placeholder5"),
           actionButton("run", "Find sgRNA", icon("paper-plane"))
@@ -121,7 +122,7 @@ server <- function(input, output) {
       designprogress$set(message = "Finding sgRNA", value = 0, detail = "This may take a while")
       # Close the progress when this reactive exits (even if there's an error)
       on.exit(designprogress$close())
-      all_data <- sgRNA_design(usersequence = sequence, genomename = input$'genome_select', designprogress, 
+      all_data <- sgRNA_design(usersequence = sequence, genomename = input$'genome_select', gtfname = input$'gtf_file', designprogress, 
                                calloffs = callofftargets, annotateoffs = annotateofftargets)
       if ((length(all_data) == 0) == FALSE) {
         int_sgRNA_data <- data.frame(all_data[1:14])
@@ -151,6 +152,7 @@ server <- function(input, output) {
             )
           )
         }
+        offtargetdf$data <- int_offtarget_data  
       } else {
         showModal(modalDialog(
           title = "Error",

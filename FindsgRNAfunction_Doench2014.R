@@ -7,7 +7,7 @@
 ##
 ## if stringr needs to be installed:
 ## install.packages("stringr", repos='http://cran.us.r-project.org')
-sgRNA_design <- function(usersequence, genomename, designprogress, calloffs, annotateoffs){
+sgRNA_design <- function(usersequence, genomename, gtfname, designprogress, calloffs, annotateoffs){
   designprogress$inc(1/10)
   if (isTRUE(str_detect(usersequence, ".fasta"))){
     Biostrings_sequence <- import(usersequence)
@@ -368,14 +368,12 @@ sgRNA_design <- function(usersequence, genomename, designprogress, calloffs, ann
         data_list
       } else {
         designprogress$inc(amount = 0, message = "Annotating Off-Targets")
+        print("check")
         ## Creates a function that annotates the off-targets called above
-        annotate_genome <- function(ochr, ostart, oend, odir, genomename) {  
-          if (as.character(genomename) == "BSgenome.Scerevisiae.UCSC.sacCer2") {
-            gtf <- import("Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz")
-          }
-          if (as.character(genomename) == "BSgenome.Hsapiens.UCSC.hg19") {
-            gtf <- import("Homo_sapiens.GRCh38.92.gtf.gz")
-          }
+        annotate_genome <- function(ochr, ostart, oend, odir, gtfname) {  
+          print("gtf started")
+          gtf <- import(gtfname)
+          print("gtf finished")
           seqlevelsStyle(gtf) <- "UCSC"
           seqer <- unlist(ochr)
           starter <- as.numeric(ostart)
@@ -418,7 +416,7 @@ sgRNA_design <- function(usersequence, genomename, designprogress, calloffs, ann
           more_off_info
         }
         ## Compiles data frame of all off-target annotations
-        more_off_info <- annotate_genome(off_chr, off_start, off_end, off_direction, genomename)
+        more_off_info <- annotate_genome(off_chr, off_start, off_end, off_direction, gtfname)
         designprogress$inc(amount = 1/10, message = "Compiling Data")
         ## Complies all extra sgRNA info into a separate data frame
         all_offtarget_info <- data.frame(off_sgRNAseq, off_chr, off_start, off_end, off_mismatch, off_direction, CFD_Scores, off_offseq, more_off_info$geneidlist, more_off_info$genenamelist, more_off_info$sequencetypelist, more_off_info$exonnumberlist)
