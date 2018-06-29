@@ -13,36 +13,56 @@ FindsgRNAfunction_Doench2014.R - A script designed to be used with the user opti
 
 Doench_Model_Weights_Singleonly.csv and Doench_Model_Weights_Doubleonly.csv - Two data tables used to assist with efficiency scoring. These must be put in the working directory when using the sgRNA_design function.
 
-Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz - an example of a gene annotation file (.gtf) that needs to be used with the the sgRNA_design function
+CFD_Scoring.csv - A data table that contains the information used to calculate the off-target effects of off-target sequences.
+
+# Optional files
+StandaloneFindsgRNAfunction_Doench2014.R - The script that contains all the code needed to design sgRNA without the Shiny UI. This is useful for debugging and testing.
+
+Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz - an example of a gene annotation file (.gtf) that needs to be used with the the sgRNA_design function. In order to run the program with default settings, a .gtf file for the target organism must be provided.
+
+# Instructions for the Shiny UI
+Download RunShiny.R, FindsgRNAfunction_Doench2014.R, and all three .csv files (Doench_Model_Weights_Singleonly.csv, Doench_Model_Weights_Doubleonly.csv, and CFD_Scoring.csv). Open RunShiny.R and set your working directory to a location that contains all of the previously downloaded files for this program. Install packages as necesary.
+
+A list of compatible genomes to check for off-targets in may be located by using the command `available.genomes()` in the R console. These genomes may then be installed using the following command:
+`biocLite("your.genome")`
+Example: `biocLite("BSgenome.Hsapiens.UCSC.hg19")`
+
+A a genome annotation file (.gtf) specfic to your genome of choice is required to provide detailed information on possible off-target sequences. These can be found at: https://useast.ensembl.org/info/data/ftp/index.html. This file can be saved anywhere as the UI will ask for it to be provided manually. A sample .gtf file has been provided in this directory (Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz).
+
+The user interface can then be run using the command: `runApp("RunShiny.R")`
+
+In the UI, provide either a DNA sequence or a .fasta file to design sgRNA for. Then choose your desired genome from the drop-down genome list. Provide a .gtf file to annatote off-target sequences. Options can be set to skip the annotation of off-target sequences or prevent the program from calling off-target sequences. Finally click "Find sgRNA" and the program will begin.
+
+Important Note: When designing sgRNA for large genomes (billions of base pairs), use short query DNA sequences (under 250 bp). Depending on your hardware checking for off-targets can be quite computationally intensive and may take several hours if not limited to smaller query sequences.
 
 # Instructions for StandaloneFindsgRNAfunction_Doench2014.R
 The working directory must be set to a folder that contains this script, a .gtf file from a species of your choice, and the files: "Doench_Model_Weights_Singleonly.csv" and "Doench_Model_Weights_Doubleonly.csv"
 
 
-Example: setwd("C://Users//User//Desktop//Folder")
+Example: `setwd("C://Users//User//Desktop//Folder")`
 
 if packages need to be installed input the following code:
 
-install.packages("stringr", repos='http://cran.us.r-project.org')
+`install.packages("stringr", repos='http://cran.us.r-project.org')`
 
-source("https://bioconductor.org/biocLite.R")
+`source("https://bioconductor.org/biocLite.R")`
 
-biocLite("Biostrings")
+`biocLite("Biostrings")`
 
-biocLite("BSgenome")
+`biocLite("BSgenome")`
 
 
 Your organism's genome must also be obtained from BSgenome
 
 To obtain a list of available genomes type:
 
-available.genomes()
+`available.genomes()`
 
 When a genome has been selected use the following code:
 
-biocLite("your.genome")
+`biocLite("your.genome")`
 
-Example: biocLite("BSgenome.Hsapiens.UCSC.hg19")
+Example: `biocLite("BSgenome.Hsapiens.UCSC.hg19")`
 
 
 Finally, a genome annotation file (.gtf) must be obtained for your organism and placed in the working directory
@@ -53,9 +73,9 @@ Simply source this file and run the sgRNA_desgin function withthe target sequenc
 
 Example:
 
-source("StandaloneFindsgRNAfunction_Doench2014.R")
+`source("StandaloneFindsgRNAfunction_Doench2014.R")`
 
-alldata <- sgRNA_design("ATTCGAGGAGACTATAGAGCAGGATTAGGACAGAGACCATGTGACAGAA", Scerevisiae, "Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz")
+`alldata <- sgRNA_design("ATTCGAGGAGACTATAGAGCAGGATTAGGACAGAGACCATGTGACAGAA", Scerevisiae, "Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz")`
 
 
 Important Note: When designing sgRNA for large genomes (billions of base pairs), use short query DNA sequences (under 250 bp). Depending on your hardware checking for off-targets can be quite computationally intensive and may take several hours if not limited to smaller query sequences.
