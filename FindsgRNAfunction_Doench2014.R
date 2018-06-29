@@ -7,8 +7,8 @@
 ##
 ## if stringr needs to be installed:
 ## install.packages("stringr", repos='http://cran.us.r-project.org')
-sgRNA_design <- function(usersequence, genomename, gtfname, designprogress, calloffs, annotateoffs){
-  designprogress$inc(1/10)
+sgRNA_design <- function(usersequence, genomename, gtf, designprogress, calloffs, annotateoffs){
+  designprogress$inc(1/10, message = "Finding sgRNA")
   if (isTRUE(str_detect(usersequence, ".fasta"))){
     Biostrings_sequence <- import(usersequence)
     sequence <- as.character(Biostrings_sequence)
@@ -64,8 +64,8 @@ sgRNA_design <- function(usersequence, genomename, gtfname, designprogress, call
       sgRNA_list_r[[length(sgRNA_list_r)+1]] <- poss_sgRNA
       sgRNA_r_start[[length(sgRNA_r_start)+1]] <- nchar(rev_seq)-n+5
       sgRNA_r_end[[length(sgRNA_r_end)+1]] <- nchar(rev_seq)-n+27
-   }
-   n <- n+1
+    }
+    n <- n+1
   }
   ## Removes any sgRNA that contain degerate bases (what about gap characters?)
   sgRNA_list_f <- sgRNA_list_f[grepl("[UWSMKRYBDHVNZ]", sgRNA_list_f) == FALSE]
@@ -368,12 +368,8 @@ sgRNA_design <- function(usersequence, genomename, gtfname, designprogress, call
         data_list
       } else {
         designprogress$inc(amount = 0, message = "Annotating Off-Targets")
-        print("check")
         ## Creates a function that annotates the off-targets called above
-        annotate_genome <- function(ochr, ostart, oend, odir, gtfname) {  
-          print("gtf started")
-          gtf <- import(gtfname)
-          print("gtf finished")
+        annotate_genome <- function(ochr, ostart, oend, odir, gtf) {  
           seqlevelsStyle(gtf) <- "UCSC"
           seqer <- unlist(ochr)
           starter <- as.numeric(ostart)
@@ -416,7 +412,7 @@ sgRNA_design <- function(usersequence, genomename, gtfname, designprogress, call
           more_off_info
         }
         ## Compiles data frame of all off-target annotations
-        more_off_info <- annotate_genome(off_chr, off_start, off_end, off_direction, gtfname)
+        more_off_info <- annotate_genome(off_chr, off_start, off_end, off_direction, gtf)
         designprogress$inc(amount = 1/10, message = "Compiling Data")
         ## Complies all extra sgRNA info into a separate data frame
         all_offtarget_info <- data.frame(off_sgRNAseq, off_chr, off_start, off_end, off_mismatch, off_direction, CFD_Scores, off_offseq, more_off_info$geneidlist, more_off_info$genenamelist, more_off_info$sequencetypelist, more_off_info$exonnumberlist)

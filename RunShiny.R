@@ -1,5 +1,6 @@
 ## This script is designed to be used with "FindsgRNAfunction_Doench2014.R"
-## "Doench_Model_Weights_Singleonly.csv", "Doench_Model_Weights_Doubleonly.csv"
+## "Doench_Model_Weights_Singleonly.csv", "Doench_Model_Weights_Doubleonly.csv",
+## and "CFD_Scoring.csv"
 ## The above files must be in the working directory
 ##
 ## example: setwd("C://Users//Dylan//Desktop//SP")
@@ -39,55 +40,52 @@ library(BSgenome.Scerevisiae.UCSC.sacCer2)
 
 ui <- fluidPage(
   navbarPage("crispRdesignR",
-    tabPanel("sgRNA Designer",
-      titlePanel("sgRNA Designer"),
-      
-      sidebarLayout(
-        sidebarPanel(
-          textInput("sequence", "Target Sequence", placeholder = "Paste sequence here"),
-          checkboxInput("fasta", "Use FASTA file as target sequence", value = FALSE),
-          tags$div(id = "placeholder1"),
-          selectInput("genome_select", "Select Genome",
-                      c("Homo sapiens (UCSC.hg19)" = "BSgenome.Hsapiens.UCSC.hg19",
-                        "Homo sapiens (UCSC.hg38)" = "BSgenome.Hsapiens.UCSC.hg38",
-                        "Saccharomyces cerevisiae (UCSC.sacCer2)" = "BSgenome.Scerevisiae.UCSC.sacCer2",
-                        "Mus musculus (UCSC.mm10)" = "BSgenome.Mmusculus.UCSC.mm10",
-                        "Drosphila melanogaster (UCSC.dm6)" = "BSgenome.Dmelanogaster.UCSC.dm6",
-                        "Pan troglodytes (UCSC.panTro5)" = "BSgenome.Ptroglodytes.UCSC.panTro5",
-                        "Escheria coli (NCBI.20080805)" = "BSgenome.Ecoli.NCBI.20080805",
-                        "Caenorhabditis elegans (UCSC.ce11)" = "BSgenome.Celegans.UCSC.ce11",
-                        "Ratus norvegicus (UCSC.rn6)" = "BSgenome.Rnorvegicus.UCSC.rn6",
-                        "Arabidopsis thaliana (TAIR.04232008)" = "BSgenome.Athaliana.TAIR.04232008")),
-          selectInput("scoring_select", "Select Scoring Method",
-                      c("Doench Rule Set 1 (2014)" = "Doench_2014",
-                        "Doench Rule Set 2 (2016)" = "Doench_2016"),
-                      selected = "Doench_2014"),
-          textInput("gtf_file", "Select genome annotation file (.gtf)", placeholder = "Paste filename with extension here"),
-          checkboxInput("options_toggle", "Additional Options", value = FALSE),
-          tags$div(id = "placeholder5"),
-          actionButton("run", "Find sgRNA", icon("paper-plane"))
-        ),
-        mainPanel(  
-          tags$div(id = "placeholder3"),
-          dataTableOutput("sgRNA_data"),
-          tags$div(id = "placeholder4"),
-          dataTableOutput("offtarget_data")
-        )
-      )
-    ),
-    tabPanel("About",
-      titlePanel("About"),
-      column(8, "The Cas9 Guide Finder designs guide RNA sequences (sgRNA) for Cas9 DNA editing.
-             To begin, enter a sequence into the sequence box, select a genome to search for
-             Off-Targets, and click find sgRNA."),
-      column(8, "Note about Off-target calling in large genomes: When using a large genome like
-             Homo sapiens, we reccomend using sequences under 500 base pairs. The time it can take
-             to search these genomes can be multiple hours if too many sgRNA are generated.")
-    )
-  )
-)
+             tabPanel("sgRNA Designer",
+                      titlePanel("sgRNA Designer"),
+                      sidebarLayout(
+                        sidebarPanel(
+                          textInput("sequence", "Target Sequence", placeholder = "Paste target DNA sequence here"),
+                          checkboxInput("fasta", "Use FASTA file as target sequence", value = FALSE),
+                          tags$div(id = "placeholder1"),
+                          selectInput("genome_select", "Select Genome",
+                                      c("Homo sapiens (UCSC.hg19)" = "BSgenome.Hsapiens.UCSC.hg19",
+                                        "Homo sapiens (UCSC.hg38)" = "BSgenome.Hsapiens.UCSC.hg38",
+                                        "Saccharomyces cerevisiae (UCSC.sacCer2)" = "BSgenome.Scerevisiae.UCSC.sacCer2",
+                                        "Mus musculus (UCSC.mm10)" = "BSgenome.Mmusculus.UCSC.mm10",
+                                        "Drosphila melanogaster (UCSC.dm6)" = "BSgenome.Dmelanogaster.UCSC.dm6",
+                                        "Pan troglodytes (UCSC.panTro5)" = "BSgenome.Ptroglodytes.UCSC.panTro5",
+                                        "Escheria coli (NCBI.20080805)" = "BSgenome.Ecoli.NCBI.20080805",
+                                        "Caenorhabditis elegans (UCSC.ce11)" = "BSgenome.Celegans.UCSC.ce11",
+                                        "Ratus norvegicus (UCSC.rn6)" = "BSgenome.Rnorvegicus.UCSC.rn6",
+                                        "Arabidopsis thaliana (TAIR.04232008)" = "BSgenome.Athaliana.TAIR.04232008")),
+                          fileInput("gtf_file", "Choose genome annotation file (.gtf)",
+                                    multiple = FALSE),
+                          checkboxInput("options_toggle", "Additional Options", value = FALSE),
+                          tags$div(id = "placeholder5"),
+                          actionButton("run", "Find sgRNA", icon("paper-plane"))
+                        ),
+                        mainPanel(  
+                          tags$div(id = "placeholder3"),
+                          dataTableOutput("sgRNA_data"),
+                          tags$div(id = "placeholder4"),
+                          dataTableOutput("offtarget_data"),
+                          titlePanel("About"),
+                          column(8, "The Cas9 Guide Finder designs guide RNA sequences (sgRNA) for Cas9 DNA editing.
+                                 To begin, enter a sequence into the sequence box, select a genome to search for
+                                 Off-Targets, and click find sgRNA."),
+                          column(8, "Note about Off-target calling in large genomes: When using a large genome like
+                                 Homo sapiens, we reccomend using sequences under 500 base pairs. The time it can take
+                                 to search these genomes can be multiple hours if too many sgRNA are generated.")
+                          )
+                      )
+             )
+                      )
+                      )
 
 server <- function(input, output) {
+  ## Increases the maximum file size that can be uploaded to Shiny to accomadate .gtf files
+  options(shiny.maxRequestSize=150*1024^2) 
+  
   ## Sources the file that contains the function for sgRNA design
   source("FindsgRNAfunction_Doench2014.R")
   
@@ -100,13 +98,19 @@ server <- function(input, output) {
   callofftargets <- "yes_off"
   annotateofftargets <- "yes_annotate"
   
+  ## Creates a variable for the gene annotation file
+  gtf_datapath <<- 0
+  gene_annotation_file <<- 0
+  
   ## Runs the sgRNA_design function when the action button is pressed
   observeEvent(input$run, {
-    if (exists("input$toggle_off_targets") == TRUE) {
-      callofftargets <- input$toggle_off_targets
+    callofftargets <- input$'toggle_off_targets'
+    annotateofftargets <- input$'toggle_off_annotation'
+    if (is.null(callofftargets)){
+      callofftargets <- "yes_off"
     }
-    if (exists("input$toggle_off_annotation") == TRUE) {
-      annotateofftargets <- input$toggle_off_annotation
+    if (is.null(annotateofftargets)){
+      annotateofftargets <- "yes_annotate"
     }
     if (input$'fasta' == TRUE) {
       sequence <- import(input$'fastafile'$datapath)
@@ -119,15 +123,28 @@ server <- function(input, output) {
     if (isTRUE(try(class(DNAString(sequence)) == "DNAString"))) {
       # Create a Progress object
       designprogress <- shiny::Progress$new()
-      designprogress$set(message = "Finding sgRNA", value = 0, detail = "This may take a while")
+      designprogress$set(message = "Preparing gene annotation file", value = 0, detail = "This may take a while")
       # Close the progress when this reactive exits (even if there's an error)
       on.exit(designprogress$close())
-      all_data <- sgRNA_design(usersequence = sequence, genomename = input$'genome_select', gtfname = input$'gtf_file', designprogress, 
+      if (callofftargets == "no_off" | annotateofftargets == "no_annotate") {
+        annotating <- FALSE
+      } else {
+        annotating <- TRUE
+      }
+      if ((annotating != FALSE) & (gtf_datapath == 0)) {
+        gtf_datapath <<- input$'gtf_file'$datapath
+        gene_annotation_file <<- import.gff(input$'gtf_file'$datapath)
+      }
+      if ((gtf_datapath != input$'gtf_file'$datapath) & (annotating != FALSE)) {
+        gtf_datapath <<- input$'gtf_file'$datapath
+        gene_annotation_file <<- import.gff(input$'gtf_file'$datapath)
+      }
+      all_data <- sgRNA_design(usersequence = sequence, genomename = input$'genome_select', gtf = gene_annotation_file, designprogress, 
                                calloffs = callofftargets, annotateoffs = annotateofftargets)
       if ((length(all_data) == 0) == FALSE) {
         int_sgRNA_data <- data.frame(all_data[1:14])
         colnames(int_sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content",
-                                    "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3", "MM4")
+                                      "TTTT Homopolymer", "Homopolymer", "Doench Score", "MM0", "MM1", "MM2", "MM3", "MM4")
         if (input$run == 1) {
           insertUI(
             selector = "#placeholder3",
@@ -147,7 +164,8 @@ server <- function(input, output) {
             selector = "#placeholder4",
             where = "afterEnd",
             ui = tags$div(id = 'sgRNAofftext',
-                          titlePanel("Additional Off-target Information"),
+                          titlePanel("Potential Off-target Information"),
+                          column(12, "Note: this program may report sequences in the target region as potential off-target sequences"),
                           downloadButton("Download_off", "Download Off-Targets")
             )
           )
