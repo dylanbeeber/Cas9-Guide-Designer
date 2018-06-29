@@ -7,14 +7,11 @@ For the R package crispRdesignR, see https://github.com/dylanbeeber/crispRdesign
 This software aims to provide all scientifically pertinent information when designing guide RNA sequences for Cas9 genome editing. When provided a target DNA sequence for editing, a genome to check for off-targets in, and a genome annotation file (.gtf) to provide addition information about off-target matches it will out put information for two separate data tables. The first table contains all information on the generated sgRNA themselves (sgRNA sequence, PAM, Direction, Start, End, GC content, Presence of Homopolymers, Effciency Score (Doench 2014), and Genomic Matches). The second table contains all information on the found off-target sequences (Original sgRNA Sequence, Chromosome, Start, End, Number of Mismatches, Direction, Matched Sequence, Gene ID, Gene Name, Sequence Type, and Exon Number)
 
 # Required files:
-StandaloneFindsgRNAfunction_Doench2014.R - The main script that contains all the code needed to design sgRNA. This is the only R file most users will need.
-
-Doench_Model_Weights_Singleonly.csv and Doench_Model_Weights_Doubleonly.csv - Two data tables used to assist with efficiency scoring. These must be put in the working directory when using the sgRNA_design function.
-
-# Optional files:
 RunShiny.R - A script that contains code for a user interface. This UI requires installation of several addition packages and is currently only available for the human and yeast genomes.
 
 FindsgRNAfunction_Doench2014.R - A script designed to be used with the user optional Shiny user interface
+
+Doench_Model_Weights_Singleonly.csv and Doench_Model_Weights_Doubleonly.csv - Two data tables used to assist with efficiency scoring. These must be put in the working directory when using the sgRNA_design function.
 
 Saccharomyces_cerevisiae.R64-1-1.92.gtf.gz - an example of a gene annotation file (.gtf) that needs to be used with the the sgRNA_design function
 
