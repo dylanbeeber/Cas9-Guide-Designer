@@ -45,7 +45,7 @@ ui <- fluidPage(
                       sidebarLayout(
                         sidebarPanel(
                           textInput("sequence", "Target Sequence", placeholder = "Paste target DNA sequence here"),
-                          checkboxInput("fasta", "Use FASTA file as target sequence", value = FALSE),
+                          checkboxInput("fasta", "Use FASTA or txt file as target sequence", value = FALSE),
                           tags$div(id = "placeholder1"),
                           selectInput("genome_select", "Select Genome",
                                       c("Homo sapiens (UCSC.hg19)" = "BSgenome.Hsapiens.UCSC.hg19",
@@ -70,17 +70,16 @@ ui <- fluidPage(
                           tags$div(id = "placeholder4"),
                           dataTableOutput("offtarget_data"),
                           titlePanel("About"),
-                          column(8, "The Cas9 Guide Finder designs guide RNA sequences (sgRNA) for Cas9 DNA editing.
+                          column(12, HTML("The Cas9 Guide Finder designs guide RNA sequences (sgRNA) for Cas9 DNA editing.
                                  To begin, enter a sequence into the sequence box, select a genome to search for
-                                 Off-Targets, and click find sgRNA."),
-                          column(8, "Note about Off-target calling in large genomes: When using a large genome like
-                                 Homo sapiens, we reccomend using sequences under 500 base pairs. The time it can take
-                                 to search these genomes can be multiple hours if too many sgRNA are generated.")
+                                 Off-Targets, provide a genome annotation file (.gtf) specific to your genome, and click find sgRNA. <br/><br/> Note about Off-target calling in large genomes: When using a large genome like
+                                 Homo sapiens, we reccomend using sequences under 250 base pairs. The time it can take
+                                 to search these genomes can be multiple hours if too many sgRNA are generated."))
+                          )
+                          )
                           )
                       )
-             )
-                      )
-                      )
+  )
 
 server <- function(input, output) {
   ## Increases the maximum file size that can be uploaded to Shiny to accomadate .gtf files
@@ -113,13 +112,18 @@ server <- function(input, output) {
       annotateofftargets <- "yes_annotate"
     }
     if (input$'fasta' == TRUE) {
-      sequence <- import(input$'fastafile'$datapath)
-      sequence <- as.character(sequence)
+      if (isTRUE(class(try(import(input$'fastafile'$datapath, format = "fasta"))) == "DNAStringSet")) {
+        sequence <- import(input$'fastafile'$datapath, format = "fasta")
+        sequence <- as.character(sequence)
+      } else {
+        sequence <- read.table(input$'fastafile'$datapath)
+        sequence <- paste(sequence[1:nrow(sequence), 1], collapse = "")
+      }
     } else {
-      # Check to see if input is valid
       sequence <- paste(input$'sequence', collapse = "")
       sequence <- str_replace_all(sequence, fixed(" "), "")
     }
+    # Check to see if input is valid
     if (isTRUE(try(class(DNAString(sequence)) == "DNAString"))) {
       # Create a Progress object
       designprogress <- shiny::Progress$new()
