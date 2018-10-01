@@ -158,7 +158,7 @@ sgRNA_design <- function(usersequence, genomename, gtf, designprogress, calloffs
       ## Splits the sgRNA into individual nucleotides
       split_sgRNA <- str_split(sgRNA_list[1+g], "", simplify = TRUE)
       ## Creates the sgRNA_model_weight list and adds the intercept to it
-      sgRNA_model_weights <- c()
+      sgRNA_model_weights <- c(0.597636154)
       ## Finds the model weights for each individual nucleotide in the sgRNA and adds them to sgRNA_model_weights
       n <- 0
       for (t in 1:39){
