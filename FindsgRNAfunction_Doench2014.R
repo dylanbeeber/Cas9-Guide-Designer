@@ -9,10 +9,11 @@
 ## install.packages("stringr", repos='http://cran.us.r-project.org')
 sgRNA_design <- function(usersequence, genomename, gtf, designprogress, calloffs, annotateoffs){
   designprogress$inc(1/10, message = "Finding sgRNA")
+  ## Detects whether the user input is a .fasta
   if (isTRUE(str_detect(usersequence, ".fasta"))){
     Biostrings_sequence <- import(usersequence)
     sequence <- as.character(Biostrings_sequence)
-  } else {
+  } else { ## Imports as a character string
     sequence <- paste(usersequence, collapse = "")
     sequence <- str_replace_all(sequence, fixed(" "), "")
     Biostrings_sequence <- DNAString(sequence)
@@ -122,11 +123,14 @@ sgRNA_design <- function(usersequence, genomename, gtf, designprogress, calloffs
     designprogress$inc(1/10)
     ## Detect Self complementarity
     self_comp_list <- c()
+    ## Region of sgRNA backbone that is vulnerable to forming hairpins
     backbone_area <- DNAString("AGGCTAGTCCGT")
     revcomp_backbone <- reverseComplement(backbone_area)
+    ## Creates a function to detect the GC content of 4 bp regions of the sgRNA
     SpeFindGC <- function(seqlist){
       ((str_count(seqlist, "G") + str_count(seqlist, "C")) / 4)
     }
+    ## Process that detects hairpins within the sgRNA or with the backbone
     for (j in 1:length(sgRNA_seq)){
       testDNA <- DNAString(sgRNA_seq[j])
       revcompDNA <- reverseComplement(testDNA)
@@ -243,6 +247,7 @@ sgRNA_design <- function(usersequence, genomename, gtf, designprogress, calloffs
       off_chr <- c()
       off_mismatch <- c()
       nseq <- length(seqnames)
+      ## Creates a list of acceptable PAMs
       PAM_test_list <- c("GG", "AG", "CG", "GA", "GC", "GT", "TG")
       rev_PAM_test_list <- c("CC", "CT", "CG", "TC", "GC", "AC", "CA")
       for (seqname in seqnames) {
@@ -260,8 +265,10 @@ sgRNA_design <- function(usersequence, genomename, gtf, designprogress, calloffs
         for (pattern in Off_targ_Bio_sgRNA) {
           usepattern <- replaceLetterAt(pattern, 21, "N")
           subject <- usegenome[[seqname]]
+          ## Searches for off-targets in the forward strand
           off_info <- matchPattern(usepattern, subject, max.mismatch = 4, min.mismatch = 0, fixed = FALSE)
           off_info_position <- c()
+          ## Excludes off-targets that contain invalid PAMs
           if (length(off_info) > 0) {
             for (f in 1:length(off_info)) {
               if (substr(as.character(off_info[[f]]), 22, 23) %in% PAM_test_list) {
@@ -271,9 +278,11 @@ sgRNA_design <- function(usersequence, genomename, gtf, designprogress, calloffs
           }
           off_info <- off_info[off_info_position]
           mis_info <- mismatch(usepattern, off_info, fixed = FALSE)
+          ## Searches for off-targets in the reverse strand
           rev_pattern <- reverseComplement(usepattern)
           rev_off_info <- matchPattern(rev_pattern, subject, max.mismatch = 4, min.mismatch = 0, fixed = FALSE)
           rev_off_info_position <- c()
+          ## Excludes off-targets that contain invalid PAMs
           if (length(rev_off_info) > 0) {
             for (f in 1:length(rev_off_info)) {
               if (substr(as.character(rev_off_info[[f]]), 1, 2) %in% rev_PAM_test_list) {
