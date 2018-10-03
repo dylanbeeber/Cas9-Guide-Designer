@@ -100,12 +100,6 @@ sgRNA_design <- function(usersequence, genomename, gtf, designprogress, userPAM,
       ((str_count(seqlist, "G") + str_count(seqlist, "C")) / 20)
     }
     GCinstance <- sapply(sgRNA_seq, FindGC)
-    ## Creates a list that determines the GC percentage
-    ## Consider whether to keep this
-    EvalGC <- function(GC){
-      isTRUE(30<=GC&GC<= 70)
-    }
-    GClist <- sapply(GCinstance, EvalGC)
     ## Find homopolmers
     Findhomopolymer <- function(seqlist){
       str_detect(seqlist, "TTTT|AAAA|GGGG|CCCC")
