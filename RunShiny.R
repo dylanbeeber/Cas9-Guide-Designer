@@ -96,6 +96,7 @@ server <- function(input, output) {
   ## Creates default values for the arguments in the find sgRNA function
   callofftargets <- "yes_off"
   annotateofftargets <- "yes_annotate"
+  givenPAM <- "NGG"
   
   ## Creates a variable for the gene annotation file
   gtf_datapath <<- 0
@@ -105,11 +106,15 @@ server <- function(input, output) {
   observeEvent(input$run, {
     callofftargets <- input$'toggle_off_targets'
     annotateofftargets <- input$'toggle_off_annotation'
+    givenPAM <- input$'customPAM'
     if (is.null(callofftargets)){
       callofftargets <- "yes_off"
     }
     if (is.null(annotateofftargets)){
       annotateofftargets <- "yes_annotate"
+    }
+    if (is.null(givenPAM)){
+      givenPAM <- "NGG"
     }
     if (input$'fasta' == TRUE) {
       if (isTRUE(class(try(import(input$'fastafile'$datapath, format = "fasta"))) == "DNAStringSet")) {
@@ -143,7 +148,7 @@ server <- function(input, output) {
         gtf_datapath <<- input$'gtf_file'$datapath
         gene_annotation_file <<- import.gff(input$'gtf_file'$datapath)
       }
-      all_data <- sgRNA_design(usersequence = sequence, genomename = input$'genome_select', gtf = gene_annotation_file, designprogress, 
+      all_data <- sgRNA_design(usersequence = sequence, genomename = input$'genome_select', gtf = gene_annotation_file, userPAM = givenPAM, designprogress, 
                                calloffs = callofftargets, annotateoffs = annotateofftargets)
       if ((length(all_data) == 0) == FALSE) {
         int_sgRNA_data <- data.frame(all_data[1:15])
@@ -233,6 +238,8 @@ server <- function(input, output) {
         selector = "#placeholder5",
         where = "afterEnd",
         ui = tags$div(id = 'optionsmenu',
+                      column(12, HTML("Warning: Doench score not accurate for custom PAMS")),
+                      textInput("customPAM", "Custom PAM (max 6 bp)", value = "NGG"),
                       selectInput("toggle_off_targets", "Call Off-Targets?",
                                   c("Yes" = "yes_off",
                                     "No" = "no_off"),
