@@ -106,15 +106,21 @@ server <- function(input, output) {
   observeEvent(input$run, {
     callofftargets <- input$'toggle_off_targets'
     annotateofftargets <- input$'toggle_off_annotation'
-    givenPAM <- input$'customPAM'
+    if (input$options_toggle == TRUE) {
+      if (nchar(paste(input$'customPAM')) <= 6) {
+        givenPAM <- paste(input$'customPAM')
+      } else {
+        showModal(modalDialog(
+          title = "Error",
+          "Custom PAM must be 6 base pairs or less"
+        ))
+      }
+    }
     if (is.null(callofftargets)){
       callofftargets <- "yes_off"
     }
     if (is.null(annotateofftargets)){
       annotateofftargets <- "yes_annotate"
-    }
-    if (is.null(givenPAM)){
-      givenPAM <- "NGG"
     }
     if (input$'fasta' == TRUE) {
       if (isTRUE(class(try(import(input$'fastafile'$datapath, format = "fasta"))) == "DNAStringSet")) {
@@ -239,7 +245,7 @@ server <- function(input, output) {
         where = "afterEnd",
         ui = tags$div(id = 'optionsmenu',
                       column(12, HTML("Warning: Doench score not accurate for custom PAMS")),
-                      textInput("customPAM", "Custom PAM (max 6 bp)", value = "NGG"),
+                      textInput("customPAM", "Custom PAM (Max 6bp)", value = "NGG"),
                       selectInput("toggle_off_targets", "Call Off-Targets?",
                                   c("Yes" = "yes_off",
                                     "No" = "no_off"),

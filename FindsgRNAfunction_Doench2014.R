@@ -8,9 +8,6 @@
 ## if stringr needs to be installed:
 ## install.packages("stringr", repos='http://cran.us.r-project.org')
 sgRNA_design <- function(usersequence, genomename, gtf, designprogress, userPAM, calloffs, annotateoffs){
-  if (missing(userPAM)) {
-    userPAM <- "NGG"
-  }
   designprogress$inc(1/10, message = "Finding sgRNA")
   ## Detects whether the user input is a .fasta
   if (isTRUE(str_detect(usersequence, ".fasta"))){
@@ -44,7 +41,7 @@ sgRNA_design <- function(usersequence, genomename, gtf, designprogress, userPAM,
   ## will describe as a possible sgRNA. Even though most sgRNA is
   ## only 20 nucleotides long, nucleotides surrounding the sgRNA
   ## are used for study-based scoring
-  setPAM <- "NGG"
+  setPAM <- userPAM
   usesetPAM <- str_replace_all(setPAM, "N", ".")
   lengthpostPAM <- (6 - nchar(usesetPAM))
   PAM <- paste("........................", usesetPAM, paste(rep(".", lengthpostPAM), sep ="", collapse =""), sep="", collapse ="")
