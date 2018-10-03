@@ -42,7 +42,7 @@ sgRNA_design <- function(usersequence, genomename, gtf, designprogress, calloffs
   ## only 20 nucleotides long, nucleotides surrounding the sgRNA
   ## are used for study-based scoring
   setPAM <- "NGG"
-  usesetPAM <- str_replace(setPAM, "N", ".")
+  usesetPAM <- str_replace_all(setPAM, "N", ".")
   lengthpostPAM <- (6 - nchar(usesetPAM))
   PAM <- paste("........................", usesetPAM, paste(rep(".", lengthpostPAM), sep ="", collapse =""), sep="", collapse ="")
   ## Searches all 23 nt streches in the sequence for
@@ -226,7 +226,6 @@ sgRNA_design <- function(usersequence, genomename, gtf, designprogress, calloffs
         DNAString(seqlist)
       }
       Biostrings_sgRNA <- lapply(sgRNA_with_PAM, multiple_DNAString)
-      Off_targ_Bio_sgRNA <- Biostrings_sgRNA
       ## Define genome
       usegenome <- get(genomename)
       seqnames <- seqnames(usegenome)
@@ -259,35 +258,39 @@ sgRNA_design <- function(usersequence, genomename, gtf, designprogress, calloffs
         revchrmm2_list <- c()
         revchrmm3_list <- c()
         revchrmm4_list <- c()
-        for (pattern in Off_targ_Bio_sgRNA) {
-          usepattern <- replaceLetterAt(pattern, 21, "N")
+        for (pattern in Biostrings_sgRNA) {
+          usepattern <- DNAString(paste(substr(as.character(pattern), 1, 20), setPAM, sep ="", collapse =""))
           subject <- usegenome[[seqname]]
           ## Searches for off-targets in the forward strand
           off_info <- matchPattern(usepattern, subject, max.mismatch = 4, min.mismatch = 0, fixed = FALSE)
-          off_info_position <- c()
-          ## Excludes off-targets that contain invalid PAMs
-          if (length(off_info) > 0) {
-            for (f in 1:length(off_info)) {
-              if (substr(as.character(off_info[[f]]), 22, 23) %in% PAM_test_list) {
-                off_info_position[[length(off_info_position)+1]] <- f
+          ## Excludes off-targets that contain invalid "NGG" PAMs
+          if (setPAM == "NGG") {
+            off_info_position <- c()
+            if (length(off_info) > 0) {
+              for (f in 1:length(off_info)) {
+                if (substr(as.character(off_info[[f]]), 22, 23) %in% PAM_test_list) {
+                  off_info_position[[length(off_info_position)+1]] <- f
+                }
               }
             }
+            off_info <- off_info[off_info_position]
           }
-          off_info <- off_info[off_info_position]
           mis_info <- mismatch(usepattern, off_info, fixed = FALSE)
           ## Searches for off-targets in the reverse strand
           rev_pattern <- reverseComplement(usepattern)
           rev_off_info <- matchPattern(rev_pattern, subject, max.mismatch = 4, min.mismatch = 0, fixed = FALSE)
-          rev_off_info_position <- c()
-          ## Excludes off-targets that contain invalid PAMs
-          if (length(rev_off_info) > 0) {
-            for (f in 1:length(rev_off_info)) {
-              if (substr(as.character(rev_off_info[[f]]), 1, 2) %in% rev_PAM_test_list) {
-                rev_off_info_position[[length(rev_off_info_position)+1]] <- f
+          ## Excludes off-targets that contain invalid "NGG" PAMs
+          if (setPAM == "NGG") {  
+            rev_off_info_position <- c()
+            if (length(rev_off_info) > 0) {
+              for (f in 1:length(rev_off_info)) {
+                if (substr(as.character(rev_off_info[[f]]), 1, 2) %in% rev_PAM_test_list) {
+                  rev_off_info_position[[length(rev_off_info_position)+1]] <- f
+                }
               }
             }
+            rev_off_info <- rev_off_info[rev_off_info_position]
           }
-          rev_off_info <- rev_off_info[rev_off_info_position]
           rev_mis_info <- mismatch(rev_pattern, rev_off_info, fixed = FALSE)
           if (length(off_info) > 0) {
             for (f in 1:length(off_info)) {
@@ -381,29 +384,25 @@ sgRNA_design <- function(usersequence, genomename, gtf, designprogress, calloffs
             individ_scores[[length(individ_scores)+1]] <- CFD_Model_Scores[index,4]
           }
         }
-        specific_PAM <- (paste(CFDoffsplit[22], CFDoffsplit[23], sep = ""))
-        if (isTRUE(specific_PAM != "GG")){
-          if (specific_PAM %in% off_model_PAMs) {
-            PAM_index <- which(off_model_PAMs==specific_PAM)
-            individ_scores[[length(individ_scores)+1]] <- CFD_PAM_Scores[PAM_index,2]
-          } else {
-            individ_scores[[length(individ_scores)+1]] <- 0
+        if (setPAM == "NGG") {
+          specific_PAM <- (paste(CFDoffsplit[22], CFDoffsplit[23], sep = ""))
+          if (isTRUE(specific_PAM != "GG")){
+            if (specific_PAM %in% off_model_PAMs) {
+              PAM_index <- which(off_model_PAMs==specific_PAM)
+              individ_scores[[length(individ_scores)+1]] <- CFD_PAM_Scores[PAM_index,2]
+            } else {
+              individ_scores[[length(individ_scores)+1]] <- 0
+            }
           }
-        }
+        }  
         if (length(individ_scores) == 0) {
           CFD_Scores[[length(CFD_Scores)+1]] <- 1
-        }
-        if (length(individ_scores) == 1) {
-          CFD_Scores[[length(CFD_Scores)+1]] <- individ_scores[1]
-        }
-        if (length(individ_scores) == 2) {
-          CFD_Scores[[length(CFD_Scores)+1]] <- prod(individ_scores[1], individ_scores[2])
-        }
-        if (length(individ_scores) == 3) {
-          CFD_Scores[[length(CFD_Scores)+1]] <- prod(individ_scores[1], individ_scores[2], individ_scores[3])
-        }
-        if (length(individ_scores) == 4) {
-          CFD_Scores[[length(CFD_Scores)+1]] <- prod(individ_scores[1], individ_scores[2], individ_scores[3], individ_scores[4])
+        } else {
+          CFDproduct <- 1
+          for (x in 1:length(individ_scores)){
+            CFDproduct <- prod(individ_scores[x], CFDproduct)
+          }  
+          CFD_Scores[[length(CFD_Scores)+1]] <- CFDproduct
         }
       }
       CFD_Scores <- round(CFD_Scores, digits = 3)
