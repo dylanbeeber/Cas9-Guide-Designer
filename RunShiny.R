@@ -23,6 +23,8 @@
 ##library(rsconnect)
 library(shiny)
 library(stringr)
+library(vtreat)
+library(gbm)
 library(IRanges)
 library(GenomicRanges)
 library(rtracklayer)
@@ -86,7 +88,7 @@ server <- function(input, output) {
   options(shiny.maxRequestSize=150*1024^2) 
   
   ## Sources the file that contains the function for sgRNA design
-  source("FindsgRNAfunction_Doench2014.R")
+  source("FindsgRNAfunction.r")
   
   ## Creates a list of reactive values that allows the program to
   ## update only when the action button is pressed
@@ -159,7 +161,7 @@ server <- function(input, output) {
       if ((length(all_data) == 0) == FALSE) {
         int_sgRNA_data <- data.frame(all_data[1:14])
         colnames(int_sgRNA_data) <- c("sgRNA sequence", "PAM sequence", "Direction", "Start", "End", "GC content",
-                                      "Homopolymer", "Self Complementary", "Doench Score", "MM0", "MM1", "MM2", "MM3", "MM4")
+                                      "Homopolymer", "Self Complementary", "Efficiency Score", "MM0", "MM1", "MM2", "MM3", "MM4")
         if (input$run == 1) {
           insertUI(
             selector = "#placeholder3",
